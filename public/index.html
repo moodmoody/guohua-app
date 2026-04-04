@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>国画管理</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>国画管理</h1>
+        <p>上传你的作品，按分类整理，并为每幅画记录评论。</p>
+      </header>
+
+      <section class="panel">
+        <h2>上传作品</h2>
+        <form id="upload-form">
+          <div class="grid">
+            <label>
+              标题
+              <input name="title" type="text" placeholder="如：溪山清远图" required />
+            </label>
+            <label>
+              分类
+              <input
+                name="category"
+                type="text"
+                placeholder="如：山水 / 花鸟 / 人物"
+                required
+              />
+            </label>
+          </div>
+          <label>
+            简介
+            <textarea
+              name="description"
+              rows="3"
+              placeholder="可写技法、创作时间、灵感来源等"
+            ></textarea>
+          </label>
+          <label>
+            图片文件
+            <input name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
+          </label>
+          <button type="submit">上传</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>作品列表</h2>
+        <div class="toolbar">
+          <label>
+            分类筛选
+            <select id="filter-category">
+              <option value="">全部分类</option>
+            </select>
+          </label>
+          <label>
+            关键词
+            <input id="search-input" type="text" placeholder="标题/分类/简介" />
+          </label>
+        </div>
+        <div id="message" class="message"></div>
+        <div id="paintings" class="cards"></div>
+      </section>
+    </main>
+
+    <template id="painting-template">
+      <article class="card">
+        <img class="painting-image" alt="" />
+        <div class="card-content">
+          <h3 class="painting-title"></h3>
+          <p class="meta"></p>
+          <p class="description"></p>
+          <div class="comments">
+            <h4>评论</h4>
+            <ul class="comment-list"></ul>
+            <form class="comment-form">
+              <input
+                name="comment"
+                type="text"
+                placeholder="写下你的评论"
+                required
+              />
+              <button type="submit">添加</button>
+            </form>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
