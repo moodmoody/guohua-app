@@ -9,86 +9,282 @@
   <body>
     <main class="container">
       <header class="header">
-        <h1>国画管理</h1>
-        <p>上传你的作品，按分类整理，并为每幅画记录评论。</p>
+        <div class="title-row">
+          <h1>国画管理</h1>
+          <span class="seal">雅集</span>
+        </div>
+        <p>在纸墨之间整理作品与素材，记录每一幅画的题跋、评语和参考资料。</p>
       </header>
 
-      <section class="panel">
-        <h2>上传作品</h2>
-        <form id="upload-form">
-          <div class="grid">
+      <nav class="tabs" aria-label="功能分区">
+        <button
+          id="tab-btn-paintings"
+          class="tab-btn active"
+          type="button"
+          data-tab-target="paintings"
+        >
+          作品管理
+        </button>
+        <button
+          id="tab-btn-materials"
+          class="tab-btn"
+          type="button"
+          data-tab-target="materials"
+        >
+          素材管理
+        </button>
+      </nav>
+
+      <section id="tab-pane-paintings" class="tab-pane active" data-tab-pane="paintings">
+        <section class="panel">
+          <h2>上传作品</h2>
+          <form id="upload-form">
+            <div class="grid">
+              <label>
+                标题
+                <input name="title" type="text" placeholder="如：溪山清远图" required />
+              </label>
+              <label>
+                分类
+                <input
+                  name="category"
+                  type="text"
+                  placeholder="如：山水 / 花鸟 / 人物"
+                  required
+                />
+              </label>
+            </div>
             <label>
-              标题
-              <input name="title" type="text" placeholder="如：溪山清远图" required />
+              简介
+              <textarea
+                name="description"
+                rows="3"
+                placeholder="可写技法、创作时间、灵感来源等"
+              ></textarea>
             </label>
             <label>
-              分类
+              图片文件
+              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
+            </label>
+            <button type="submit">上传</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>作品列表</h2>
+          <div class="toolbar">
+            <label>
+              分类筛选
+              <select id="filter-category">
+                <option value="">全部分类</option>
+              </select>
+            </label>
+            <label>
+              关键字
+              <input id="search-input" type="text" placeholder="标题/分类/简介/评论" />
+            </label>
+          </div>
+          <div class="toolbar-actions">
+            <button id="search-btn" type="button">检索</button>
+            <button id="reset-btn" type="button" class="ghost">重置</button>
+          </div>
+          <div id="message" class="message"></div>
+          <div id="paintings" class="cards"></div>
+          <div id="pagination" class="pagination hidden">
+            <button id="prev-page-btn" type="button" class="ghost">上一页</button>
+            <span id="page-info" class="page-info"></span>
+            <button id="next-page-btn" type="button" class="ghost">下一页</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="tab-pane-materials" class="tab-pane" data-tab-pane="materials">
+        <section class="panel">
+          <h2>上传素材</h2>
+          <form id="material-upload-form">
+            <div class="grid">
+              <label>
+                素材名称
+                <input name="title" type="text" placeholder="如：石纹参考 / 水墨过程片段" required />
+              </label>
+              <label>
+                素材分类
+                <input
+                  name="category"
+                  type="text"
+                  placeholder="如：纹理 / 构图 / 临摹 / 视频教程"
+                  required
+                />
+              </label>
+            </div>
+            <label>
+              说明
+              <textarea
+                name="description"
+                rows="3"
+                placeholder="记录素材来源、用途、要点说明等"
+              ></textarea>
+            </label>
+            <label>
+              文件（图片或视频）
               <input
-                name="category"
-                type="text"
-                placeholder="如：山水 / 花鸟 / 人物"
+                name="asset"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
                 required
               />
             </label>
-          </div>
-          <label>
-            简介
-            <textarea
-              name="description"
-              rows="3"
-              placeholder="可写技法、创作时间、灵感来源等"
-            ></textarea>
-          </label>
-          <label>
-            图片文件
-            <input name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
-          </label>
-          <button type="submit">上传</button>
-        </form>
-      </section>
+            <button type="submit">上传素材</button>
+          </form>
+        </section>
 
-      <section class="panel">
-        <h2>作品列表</h2>
-        <div class="toolbar">
-          <label>
-            分类筛选
-            <select id="filter-category">
-              <option value="">全部分类</option>
-            </select>
-          </label>
-          <label>
-            关键词
-            <input id="search-input" type="text" placeholder="标题/分类/简介" />
-          </label>
-        </div>
-        <div id="message" class="message"></div>
-        <div id="paintings" class="cards"></div>
+        <section class="panel">
+          <h2>素材列表</h2>
+          <div class="toolbar">
+            <label>
+              素材分类
+              <select id="material-filter-category">
+                <option value="">全部分类</option>
+              </select>
+            </label>
+            <label>
+              关键字
+              <input id="material-search-input" type="text" placeholder="名称/分类/说明" />
+            </label>
+          </div>
+          <div class="toolbar-actions">
+            <button id="material-search-btn" type="button">检索</button>
+            <button id="material-reset-btn" type="button" class="ghost">重置</button>
+          </div>
+          <div id="material-message" class="message"></div>
+          <div id="materials" class="cards"></div>
+          <div id="material-pagination" class="pagination hidden">
+            <button id="material-prev-page-btn" type="button" class="ghost">上一页</button>
+            <span id="material-page-info" class="page-info"></span>
+            <button id="material-next-page-btn" type="button" class="ghost">下一页</button>
+          </div>
+        </section>
       </section>
     </main>
 
     <template id="painting-template">
       <article class="card">
-        <img class="painting-image" alt="" />
+        <div class="painting-media media-shell">
+          <img class="painting-image media-thumb" alt="" />
+          <span class="image-tip">单击预览</span>
+        </div>
         <div class="card-content">
           <h3 class="painting-title"></h3>
           <p class="meta"></p>
           <p class="description"></p>
+
+          <div class="card-actions">
+            <button type="button" class="edit-btn">修改</button>
+            <button type="button" class="delete-btn danger">删除</button>
+          </div>
+
+          <form class="edit-form hidden">
+            <div class="grid">
+              <label>
+                标题
+                <input name="title" type="text" required />
+              </label>
+              <label>
+                分类
+                <input name="category" type="text" required />
+              </label>
+            </div>
+            <label>
+              简介
+              <textarea name="description" rows="3"></textarea>
+            </label>
+            <label>
+              替换图片（可选）
+              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" />
+            </label>
+            <div class="edit-actions">
+              <button type="submit">保存修改</button>
+              <button type="button" class="ghost cancel-edit-btn">取消</button>
+            </div>
+          </form>
+
           <div class="comments">
             <h4>评论</h4>
             <ul class="comment-list"></ul>
             <form class="comment-form">
-              <input
-                name="comment"
-                type="text"
-                placeholder="写下你的评论"
-                required
-              />
+              <input name="comment" type="text" placeholder="写下你的评论" required />
               <button type="submit">添加</button>
             </form>
           </div>
         </div>
       </article>
     </template>
+
+    <template id="material-template">
+      <article class="card">
+        <div class="material-media media-shell">
+          <img class="material-image media-thumb hidden" alt="" />
+          <video class="material-video media-thumb hidden" preload="metadata" muted playsinline></video>
+          <span class="image-tip material-tip">单击预览</span>
+        </div>
+        <div class="card-content">
+          <h3 class="material-title"></h3>
+          <p class="meta material-meta"></p>
+          <p class="description material-description"></p>
+
+          <div class="card-actions">
+            <button type="button" class="material-edit-btn">修改</button>
+            <button type="button" class="material-delete-btn danger">删除</button>
+          </div>
+
+          <form class="material-edit-form hidden">
+            <div class="grid">
+              <label>
+                素材名称
+                <input name="title" type="text" required />
+              </label>
+              <label>
+                素材分类
+                <input name="category" type="text" required />
+              </label>
+            </div>
+            <label>
+              说明
+              <textarea name="description" rows="3"></textarea>
+            </label>
+            <label>
+              替换文件（可选，图片或视频）
+              <input
+                name="asset"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
+              />
+            </label>
+            <div class="edit-actions">
+              <button type="submit">保存修改</button>
+              <button type="button" class="ghost material-cancel-edit-btn">取消</button>
+            </div>
+          </form>
+        </div>
+      </article>
+    </template>
+
+    <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true">
+      <button id="lightbox-close" class="lightbox-close" type="button" aria-label="关闭预览">
+        关闭
+      </button>
+      <div class="lightbox-content">
+        <img id="lightbox-image" class="lightbox-image hidden" alt="" />
+        <video
+          id="lightbox-video"
+          class="lightbox-video hidden"
+          controls
+          preload="metadata"
+          playsinline
+        ></video>
+        <p id="lightbox-caption" class="lightbox-caption"></p>
+      </div>
+    </div>
 
     <script src="/app.js"></script>
   </body>
