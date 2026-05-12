@@ -187,6 +187,114 @@ function renderPagination({
   return { currentPage, totalPages };
 }
 
+function inferTypeFromUrl(url, fallbackType = "image") {
+  const target = String(url || "").toLowerCase();
+  if (target.endsWith(".mp4") || target.endsWith(".webm") || target.endsWith(".mov") || target.endsWith(".mkv")) {
+    return "video";
+  }
+  return fallbackType === "video" ? "video" : "image";
+}
+
+function normalizeAttachment(attachment, fallbackType = "image") {
+  const url = String(attachment?.url || attachment?.imageUrl || attachment?.assetUrl || "").trim();
+  if (!url) {
+    return null;
+  }
+
+  const rawType = String(attachment?.type || attachment?.assetType || "").trim();
+  const type = rawType === "video" || rawType === "image" ? rawType : inferTypeFromUrl(url, fallbackType);
+
+  const idFromUrl = url.split("/").filter(Boolean).pop() || "";
+  const id = String(attachment?.id || idFromUrl).trim() || `${type}-${Date.now()}`;
+
+  return { id, url, type };
+}
+
+function getAttachments(item, legacyUrl, legacyType) {
+  const attachments = Array.isArray(item.attachments)
+    ? item.attachments.map((attachment) => normalizeAttachment(attachment, legacyType)).filter(Boolean)
+    : [];
+
+  if (attachments.length > 0) {
+    return attachments;
+  }
+
+  const fallback = normalizeAttachment({
+    id: String(legacyUrl || "").split("/").filter(Boolean).pop() || "",
+    url: legacyUrl,
+    type: legacyType,
+  }, legacyType);
+
+  return fallback ? [fallback] : [];
+}
+
+function setPreviewMedia({ imageEl, videoEl, tipEl, attachment, title }) {
+  imageEl.classList.add("hidden");
+  imageEl.src = "";
+  imageEl.alt = "";
+
+  videoEl.classList.add("hidden");
+  videoEl.pause();
+  videoEl.src = "";
+
+  if (!attachment) {
+    tipEl.textContent = "无附件";
+    return;
+  }
+
+  if (attachment.type === "video") {
+    videoEl.src = attachment.url;
+    videoEl.classList.remove("hidden");
+    tipEl.textContent = "单击预览视频";
+    return;
+  }
+
+  imageEl.src = attachment.url;
+  imageEl.alt = title;
+  imageEl.classList.remove("hidden");
+  tipEl.textContent = "单击预览图片";
+}
+
+function renderAttachmentStrip({ container, attachments, selectedIndex, onSelect, onDelete }) {
+  container.innerHTML = "";
+
+  if (!attachments.length) {
+    const empty = document.createElement("p");
+    empty.className = "attachment-empty";
+    empty.textContent = "暂无附件";
+    container.appendChild(empty);
+    return;
+  }
+
+  attachments.forEach((attachment, index) => {
+    const item = document.createElement("div");
+    item.className = "attachment-item";
+
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `attachment-chip ${attachment.type === "video" ? "attachment-video" : "attachment-image"}`;
+    if (index === selectedIndex) {
+      chip.classList.add("active");
+    }
+    chip.textContent = `${attachment.type === "video" ? "视频" : "图片"} ${index + 1}`;
+    chip.addEventListener("click", () => {
+      onSelect(index);
+    });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "attachment-remove";
+    removeBtn.textContent = "删除";
+    removeBtn.addEventListener("click", () => {
+      onDelete(attachment);
+    });
+
+    item.appendChild(chip);
+    item.appendChild(removeBtn);
+    container.appendChild(item);
+  });
+}
+
 function buildPaintingQuery() {
   const params = new URLSearchParams();
   const category = filterCategory.value.trim();
@@ -246,7 +354,11 @@ function renderPaintings() {
 
   pageItems.forEach((item) => {
     const fragment = paintingTemplate.content.cloneNode(true);
-    const imageEl = fragment.querySelector(".painting-image");
+    const shellEl = fragment.querySelector(".painting-media");
+    const previewImageEl = fragment.querySelector(".painting-preview-image");
+    const previewVideoEl = fragment.querySelector(".painting-preview-video");
+    const tipEl = fragment.querySelector(".painting-tip");
+    const attachmentsEl = fragment.querySelector(".painting-attachments");
     const titleEl = fragment.querySelector(".painting-title");
     const metaEl = fragment.querySelector(".meta");
     const descEl = fragment.querySelector(".description");
@@ -254,45 +366,93 @@ function renderPaintings() {
     const deleteBtn = fragment.querySelector(".delete-btn");
     const editForm = fragment.querySelector(".edit-form");
     const cancelEditBtn = fragment.querySelector(".cancel-edit-btn");
+    const appendForm = fragment.querySelector(".append-attachment-form");
     const commentList = fragment.querySelector(".comment-list");
     const commentForm = fragment.querySelector(".comment-form");
 
-    imageEl.src = item.imageUrl;
-    imageEl.alt = item.title;
-    imageEl.tabIndex = 0;
+    const attachments = getAttachments(item, item.imageUrl, "image");
+    let selectedIndex = 0;
+
     setHighlightedText(titleEl, item.title, keyword);
-
-    imageEl.addEventListener("click", () => {
-      openLightbox({
-        type: "image",
-        url: item.imageUrl,
-        title: item.title,
-        category: item.category,
-      });
-    });
-
-    imageEl.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openLightbox({
-          type: "image",
-          url: item.imageUrl,
-          title: item.title,
-          category: item.category,
-        });
-      }
-    });
 
     const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
     const categoryEl = document.createElement("span");
     setHighlightedText(categoryEl, item.category, keyword);
     metaEl.textContent = "";
     metaEl.appendChild(categoryEl);
-    metaEl.appendChild(
-      document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`)
-    );
+    metaEl.appendChild(document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`));
 
     setHighlightedText(descEl, item.description || "暂无简介", keyword);
+
+    const renderCurrentAttachment = () => {
+      const current = attachments[selectedIndex] || null;
+      setPreviewMedia({
+        imageEl: previewImageEl,
+        videoEl: previewVideoEl,
+        tipEl,
+        attachment: current,
+        title: item.title,
+      });
+
+      shellEl.tabIndex = current ? 0 : -1;
+      renderAttachmentStrip({
+        container: attachmentsEl,
+        attachments,
+        selectedIndex,
+        onSelect: (nextIndex) => {
+          selectedIndex = nextIndex;
+          renderCurrentAttachment();
+        },
+        onDelete: async (attachment) => {
+          const ok = window.confirm("确定删除该附件吗？");
+          if (!ok) {
+            return;
+          }
+
+          try {
+            await fetchJson(`/api/paintings/${item.id}/attachments/${encodeURIComponent(attachment.id)}`, {
+              method: "DELETE",
+            });
+            setMessage(messageEl, "作品附件删除成功");
+            await Promise.all([loadPaintingCategories(), loadPaintings()]);
+          } catch (error) {
+            setMessage(messageEl, error.message, true);
+          }
+        },
+      });
+    };
+
+    renderCurrentAttachment();
+
+    shellEl.addEventListener("click", () => {
+      const current = attachments[selectedIndex];
+      if (!current) {
+        return;
+      }
+      openLightbox({
+        type: current.type,
+        url: current.url,
+        title: item.title,
+        category: item.category,
+      });
+    });
+
+    shellEl.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      const current = attachments[selectedIndex];
+      if (!current) {
+        return;
+      }
+      event.preventDefault();
+      openLightbox({
+        type: current.type,
+        url: current.url,
+        title: item.title,
+        category: item.category,
+      });
+    });
 
     const comments = Array.isArray(item.comments) ? item.comments : [];
     if (!comments.length) {
@@ -322,19 +482,45 @@ function renderPaintings() {
 
     editForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const formData = new FormData(editForm);
-      const imageFile = editForm.elements.image.files[0];
-      if (!imageFile) {
-        formData.delete("image");
-      }
+      const payload = {
+        title: editForm.elements.title.value.trim(),
+        category: editForm.elements.category.value.trim(),
+        description: editForm.elements.description.value.trim(),
+      };
 
       try {
         await fetchJson(`/api/paintings/${item.id}`, {
           method: "PATCH",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         setMessage(messageEl, "作品修改成功");
         editForm.classList.add("hidden");
+        await Promise.all([loadPaintingCategories(), loadPaintings()]);
+      } catch (error) {
+        setMessage(messageEl, error.message, true);
+      }
+    });
+
+    appendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const files = Array.from(appendForm.elements.image.files || []);
+      if (!files.length) {
+        return;
+      }
+
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("image", file);
+      });
+
+      try {
+        await fetchJson(`/api/paintings/${item.id}/attachments`, {
+          method: "POST",
+          body: formData,
+        });
+        appendForm.reset();
+        setMessage(messageEl, "作品附件追加成功");
         await Promise.all([loadPaintingCategories(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
@@ -401,11 +587,7 @@ function materialTypeOf(item) {
     return item.assetType;
   }
 
-  const url = String(item.assetUrl || "").toLowerCase();
-  if (url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".mov") || url.endsWith(".mkv")) {
-    return "video";
-  }
-  return "image";
+  return inferTypeFromUrl(item.assetUrl || "", "image");
 }
 
 function buildMaterialQuery() {
@@ -468,9 +650,10 @@ function renderMaterials() {
   pageItems.forEach((item) => {
     const fragment = materialTemplate.content.cloneNode(true);
     const shellEl = fragment.querySelector(".material-media");
-    const imageEl = fragment.querySelector(".material-image");
-    const videoEl = fragment.querySelector(".material-video");
+    const previewImageEl = fragment.querySelector(".material-preview-image");
+    const previewVideoEl = fragment.querySelector(".material-preview-video");
     const tipEl = fragment.querySelector(".material-tip");
+    const attachmentsEl = fragment.querySelector(".material-attachments");
     const titleEl = fragment.querySelector(".material-title");
     const metaEl = fragment.querySelector(".material-meta");
     const descEl = fragment.querySelector(".material-description");
@@ -478,49 +661,92 @@ function renderMaterials() {
     const deleteBtn = fragment.querySelector(".material-delete-btn");
     const editForm = fragment.querySelector(".material-edit-form");
     const cancelBtn = fragment.querySelector(".material-cancel-edit-btn");
+    const appendForm = fragment.querySelector(".material-append-attachment-form");
 
-    const type = materialTypeOf(item);
-    const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
+    const attachments = getAttachments(item, item.assetUrl, materialTypeOf(item));
+    let selectedIndex = 0;
 
     setHighlightedText(titleEl, item.title, keyword);
     setHighlightedText(descEl, item.description || "暂无说明", keyword);
-    metaEl.textContent = `${type === "video" ? "视频" : "图片"} · ${item.category} · 创建于：${formatTime(item.createdAt)}${updateText}`;
 
-    shellEl.tabIndex = 0;
-    if (type === "video") {
-      imageEl.classList.add("hidden");
-      videoEl.classList.remove("hidden");
-      videoEl.src = item.assetUrl;
-      tipEl.textContent = "单击预览视频";
-    } else {
-      videoEl.classList.add("hidden");
-      videoEl.pause();
-      videoEl.src = "";
-      imageEl.classList.remove("hidden");
-      imageEl.src = item.assetUrl;
-      imageEl.alt = item.title;
-      tipEl.textContent = "单击预览图片";
-    }
+    const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
+    const currentType = attachments[0]?.type || materialTypeOf(item);
+
+    metaEl.textContent = "";
+    metaEl.appendChild(document.createTextNode(`${currentType === "video" ? "视频" : "图片"} · `));
+    const categoryEl = document.createElement("span");
+    setHighlightedText(categoryEl, item.category, keyword);
+    metaEl.appendChild(categoryEl);
+    metaEl.appendChild(document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`));
+
+    const renderCurrentAttachment = () => {
+      const current = attachments[selectedIndex] || null;
+      setPreviewMedia({
+        imageEl: previewImageEl,
+        videoEl: previewVideoEl,
+        tipEl,
+        attachment: current,
+        title: item.title,
+      });
+
+      shellEl.tabIndex = current ? 0 : -1;
+      renderAttachmentStrip({
+        container: attachmentsEl,
+        attachments,
+        selectedIndex,
+        onSelect: (nextIndex) => {
+          selectedIndex = nextIndex;
+          renderCurrentAttachment();
+        },
+        onDelete: async (attachment) => {
+          const ok = window.confirm("确定删除该附件吗？");
+          if (!ok) {
+            return;
+          }
+
+          try {
+            await fetchJson(`/api/materials/${item.id}/attachments/${encodeURIComponent(attachment.id)}`, {
+              method: "DELETE",
+            });
+            setMessage(materialMessageEl, "素材附件删除成功");
+            await Promise.all([loadMaterialCategories(), loadMaterials()]);
+          } catch (error) {
+            setMessage(materialMessageEl, error.message, true);
+          }
+        },
+      });
+    };
+
+    renderCurrentAttachment();
 
     shellEl.addEventListener("click", () => {
+      const current = attachments[selectedIndex];
+      if (!current) {
+        return;
+      }
       openLightbox({
-        type,
-        url: item.assetUrl,
+        type: current.type,
+        url: current.url,
         title: item.title,
         category: item.category,
       });
     });
 
     shellEl.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openLightbox({
-          type,
-          url: item.assetUrl,
-          title: item.title,
-          category: item.category,
-        });
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
       }
+      const current = attachments[selectedIndex];
+      if (!current) {
+        return;
+      }
+      event.preventDefault();
+      openLightbox({
+        type: current.type,
+        url: current.url,
+        title: item.title,
+        category: item.category,
+      });
     });
 
     editBtn.addEventListener("click", () => {
@@ -534,16 +760,17 @@ function renderMaterials() {
 
     editForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const formData = new FormData(editForm);
-      const assetFile = editForm.elements.asset.files[0];
-      if (!assetFile) {
-        formData.delete("asset");
-      }
+      const payload = {
+        title: editForm.elements.title.value.trim(),
+        category: editForm.elements.category.value.trim(),
+        description: editForm.elements.description.value.trim(),
+      };
 
       try {
         await fetchJson(`/api/materials/${item.id}`, {
           method: "PATCH",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         setMessage(materialMessageEl, "素材修改成功");
         editForm.classList.add("hidden");
@@ -553,8 +780,33 @@ function renderMaterials() {
       }
     });
 
+    appendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const files = Array.from(appendForm.elements.asset.files || []);
+      if (!files.length) {
+        return;
+      }
+
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("asset", file);
+      });
+
+      try {
+        await fetchJson(`/api/materials/${item.id}/attachments`, {
+          method: "POST",
+          body: formData,
+        });
+        appendForm.reset();
+        setMessage(materialMessageEl, "素材附件追加成功");
+        await Promise.all([loadMaterialCategories(), loadMaterials()]);
+      } catch (error) {
+        setMessage(materialMessageEl, error.message, true);
+      }
+    });
+
     deleteBtn.addEventListener("click", async () => {
-      const ok = window.confirm(`确定删除素材「${item.title}」吗？`);
+      const ok = window.confirm(`确定删除素材《${item.title}》吗？`);
       if (!ok) {
         return;
       }

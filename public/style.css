@@ -336,6 +336,62 @@ button.danger {
   padding: 14px;
 }
 
+.attachment-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid rgba(198, 179, 155, 0.5);
+  background: rgba(248, 242, 231, 0.72);
+}
+
+.attachment-item {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.attachment-chip,
+.attachment-remove {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.attachment-chip {
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 252, 245, 0.92);
+  color: var(--ink);
+}
+
+.attachment-chip.active {
+  background: linear-gradient(145deg, var(--accent), var(--accent-deep));
+  color: #f8f4ed;
+  border-color: transparent;
+  box-shadow: 0 6px 12px rgba(36, 87, 61, 0.2);
+}
+
+.attachment-remove {
+  border: 1px solid rgba(191, 74, 63, 0.6);
+  background: rgba(191, 74, 63, 0.12);
+  color: #7d2b25;
+}
+
+.attachment-remove:hover {
+  box-shadow: none;
+  transform: none;
+  background: rgba(191, 74, 63, 0.2);
+}
+
+.attachment-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
 .painting-title {
   margin: 0;
   font-size: 20px;

@@ -64,7 +64,7 @@
             </label>
             <label>
               图片文件
-              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
+              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" multiple required />
             </label>
             <button type="submit">上传</button>
           </form>
@@ -130,6 +130,7 @@
               <input
                 name="asset"
                 type="file"
+                multiple
                 accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
                 required
               />
@@ -170,9 +171,11 @@
     <template id="painting-template">
       <article class="card">
         <div class="painting-media media-shell">
-          <img class="painting-image media-thumb" alt="" />
-          <span class="image-tip">单击预览</span>
+          <img class="painting-preview-image media-thumb hidden" alt="" />
+          <video class="painting-preview-video media-thumb hidden" preload="metadata" muted playsinline></video>
+          <span class="image-tip painting-tip">单击预览</span>
         </div>
+        <div class="attachment-strip painting-attachments"></div>
         <div class="card-content">
           <h3 class="painting-title"></h3>
           <p class="meta"></p>
@@ -208,6 +211,22 @@
             </div>
           </form>
 
+          <form class="append-attachment-form">
+            <label>
+              追加图片
+              <input
+                name="image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                required
+              />
+            </label>
+            <div class="edit-actions">
+              <button type="submit">追加附件</button>
+            </div>
+          </form>
+
           <div class="comments">
             <h4>评论</h4>
             <ul class="comment-list"></ul>
@@ -223,10 +242,11 @@
     <template id="material-template">
       <article class="card">
         <div class="material-media media-shell">
-          <img class="material-image media-thumb hidden" alt="" />
-          <video class="material-video media-thumb hidden" preload="metadata" muted playsinline></video>
+          <img class="material-preview-image media-thumb hidden" alt="" />
+          <video class="material-preview-video media-thumb hidden" preload="metadata" muted playsinline></video>
           <span class="image-tip material-tip">单击预览</span>
         </div>
+        <div class="attachment-strip material-attachments"></div>
         <div class="card-content">
           <h3 class="material-title"></h3>
           <p class="meta material-meta"></p>
@@ -263,6 +283,22 @@
             <div class="edit-actions">
               <button type="submit">保存修改</button>
               <button type="button" class="ghost material-cancel-edit-btn">取消</button>
+            </div>
+          </form>
+
+          <form class="material-append-attachment-form">
+            <label>
+              追加文件（图片或视频）
+              <input
+                name="asset"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
+                multiple
+                required
+              />
+            </label>
+            <div class="edit-actions">
+              <button type="submit">追加附件</button>
             </div>
           </form>
         </div>
