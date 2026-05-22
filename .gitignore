@@ -4,3 +4,4 @@ uploads/
 Thumbs.db
 npm-debug.log*
 .worktrees/
+.superpowers/

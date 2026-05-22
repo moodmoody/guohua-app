@@ -9,11 +9,19 @@
   <body>
     <main class="container">
       <header class="header">
-        <div class="title-row">
-          <h1>国画管理</h1>
-          <span class="seal">雅集</span>
+        <div class="header-copy">
+          <span class="eyebrow">纸墨案卷</span>
+          <div class="title-row">
+            <h1>国画典藏管理</h1>
+            <span class="seal">雅集</span>
+          </div>
+          <p>以馆藏案卷的方式整理作品、素材与题跋，让每一幅画的笔墨、来源和评语都有清楚归处。</p>
         </div>
-        <p>在纸墨之间整理作品与素材，记录每一幅画的题跋、评语和参考资料。</p>
+        <div class="header-aside" aria-hidden="true">
+          <span>山水</span>
+          <span>花鸟</span>
+          <span>人物</span>
+        </div>
       </header>
 
       <nav class="tabs" aria-label="功能分区">
@@ -37,15 +45,15 @@
 
       <section id="tab-pane-paintings" class="tab-pane active" data-tab-pane="paintings">
         <section class="panel">
-          <h2>上传作品</h2>
+          <h2>作品入藏</h2>
           <form id="upload-form">
             <div class="grid">
               <label>
-                标题
+                作品题名
                 <input name="title" type="text" placeholder="如：溪山清远图" required />
               </label>
               <label>
-                分类
+                画科分类
                 <input
                   name="category"
                   type="text"
@@ -55,7 +63,7 @@
               </label>
             </div>
             <label>
-              简介
+              题跋简介
               <textarea
                 name="description"
                 rows="3"
@@ -63,30 +71,30 @@
               ></textarea>
             </label>
             <label>
-              图片文件
+              作品图像
               <input name="image" type="file" accept="image/jpeg,image/png,image/webp" multiple required />
             </label>
-            <button type="submit">上传</button>
+            <button type="submit">收入作品册</button>
           </form>
         </section>
 
         <section class="panel">
-          <h2>作品列表</h2>
+          <h2>作品册</h2>
           <div class="toolbar">
             <label>
-              分类筛选
+              按画科筛选
               <select id="filter-category">
                 <option value="">全部分类</option>
               </select>
             </label>
             <label>
-              关键字
-              <input id="search-input" type="text" placeholder="标题/分类/简介/评论" />
+              检索题名
+              <input id="search-input" type="text" placeholder="题名 / 画科 / 题跋 / 评语" />
             </label>
           </div>
           <div class="toolbar-actions">
-            <button id="search-btn" type="button">检索</button>
-            <button id="reset-btn" type="button" class="ghost">重置</button>
+            <button id="search-btn" type="button">检索案卷</button>
+            <button id="reset-btn" type="button" class="ghost">清空条件</button>
           </div>
           <div id="message" class="message"></div>
           <div id="paintings" class="cards"></div>
@@ -100,11 +108,11 @@
 
       <section id="tab-pane-materials" class="tab-pane" data-tab-pane="materials">
         <section class="panel">
-          <h2>上传素材</h2>
+          <h2>素材入库</h2>
           <form id="material-upload-form">
             <div class="grid">
               <label>
-                素材名称
+                素材题名
                 <input name="title" type="text" placeholder="如：石纹参考 / 水墨过程片段" required />
               </label>
               <label>
@@ -118,7 +126,7 @@
               </label>
             </div>
             <label>
-              说明
+              素材说明
               <textarea
                 name="description"
                 rows="3"
@@ -126,7 +134,7 @@
               ></textarea>
             </label>
             <label>
-              文件（图片或视频）
+              文件（图片或视频，素材最大 100MB）
               <input
                 name="asset"
                 type="file"
@@ -135,27 +143,27 @@
                 required
               />
             </label>
-            <button type="submit">上传素材</button>
+            <button type="submit">收入素材库</button>
           </form>
         </section>
 
         <section class="panel">
-          <h2>素材列表</h2>
+          <h2>素材库</h2>
           <div class="toolbar">
             <label>
-              素材分类
+              按类别筛选
               <select id="material-filter-category">
                 <option value="">全部分类</option>
               </select>
             </label>
             <label>
-              关键字
+              检索题名
               <input id="material-search-input" type="text" placeholder="名称/分类/说明" />
             </label>
           </div>
           <div class="toolbar-actions">
-            <button id="material-search-btn" type="button">检索</button>
-            <button id="material-reset-btn" type="button" class="ghost">重置</button>
+            <button id="material-search-btn" type="button">检索素材</button>
+            <button id="material-reset-btn" type="button" class="ghost">清空条件</button>
           </div>
           <div id="material-message" class="message"></div>
           <div id="materials" class="cards"></div>
@@ -198,7 +206,7 @@
               </label>
             </div>
             <label>
-              简介
+              题跋简介
               <textarea name="description" rows="3"></textarea>
             </label>
             <label>
@@ -213,7 +221,7 @@
 
           <form class="append-attachment-form">
             <label>
-              追加图片
+              追加图像
               <input
                 name="image"
                 type="file"
@@ -228,11 +236,11 @@
           </form>
 
           <div class="comments">
-            <h4>评论</h4>
+            <h4>评语</h4>
             <ul class="comment-list"></ul>
             <form class="comment-form">
-              <input name="comment" type="text" placeholder="写下你的评论" required />
-              <button type="submit">添加</button>
+              <input name="comment" type="text" placeholder="写下鉴赏、修订或展陈备注" required />
+              <button type="submit">添评</button>
             </form>
           </div>
         </div>
@@ -273,7 +281,7 @@
               <textarea name="description" rows="3"></textarea>
             </label>
             <label>
-              替换文件（可选，图片或视频）
+              替换文件（可选，图片或视频，素材最大 100MB）
               <input
                 name="asset"
                 type="file"
@@ -288,7 +296,7 @@
 
           <form class="material-append-attachment-form">
             <label>
-              追加文件（图片或视频）
+              追加文件（图片或视频，素材最大 100MB）
               <input
                 name="asset"
                 type="file"

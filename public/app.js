@@ -238,7 +238,7 @@ function setPreviewMedia({ imageEl, videoEl, tipEl, attachment, title }) {
   videoEl.src = "";
 
   if (!attachment) {
-    tipEl.textContent = "无附件";
+    tipEl.textContent = "暂无附件";
     return;
   }
 
@@ -324,7 +324,7 @@ function renderPaintings() {
   const total = paintingState.items.length;
 
   if (!total) {
-    paintingsRoot.innerHTML = `<p>暂无作品，先上传一幅吧。</p>`;
+    paintingsRoot.innerHTML = `<p>暂无作品，先收入一幅画作吧。</p>`;
     paintingState.page = 1;
     renderPagination({
       total: 0,
@@ -382,7 +382,7 @@ function renderPaintings() {
     metaEl.appendChild(categoryEl);
     metaEl.appendChild(document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`));
 
-    setHighlightedText(descEl, item.description || "暂无简介", keyword);
+    setHighlightedText(descEl, item.description || "暂无题跋简介", keyword);
 
     const renderCurrentAttachment = () => {
       const current = attachments[selectedIndex] || null;
@@ -404,7 +404,7 @@ function renderPaintings() {
           renderCurrentAttachment();
         },
         onDelete: async (attachment) => {
-          const ok = window.confirm("确定删除该附件吗？");
+          const ok = window.confirm("确定删除这条附件吗？");
           if (!ok) {
             return;
           }
@@ -413,7 +413,7 @@ function renderPaintings() {
             await fetchJson(`/api/paintings/${item.id}/attachments/${encodeURIComponent(attachment.id)}`, {
               method: "DELETE",
             });
-            setMessage(messageEl, "作品附件删除成功");
+            setMessage(messageEl, "作品附件已删除");
             await Promise.all([loadPaintingCategories(), loadPaintings()]);
           } catch (error) {
             setMessage(messageEl, error.message, true);
@@ -456,7 +456,7 @@ function renderPaintings() {
 
     const comments = Array.isArray(item.comments) ? item.comments : [];
     if (!comments.length) {
-      commentList.innerHTML = `<li>暂无评论</li>`;
+      commentList.innerHTML = `<li>暂无评语</li>`;
     } else {
       comments
         .slice()
@@ -494,7 +494,7 @@ function renderPaintings() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        setMessage(messageEl, "作品修改成功");
+        setMessage(messageEl, "作品已更新");
         editForm.classList.add("hidden");
         await Promise.all([loadPaintingCategories(), loadPaintings()]);
       } catch (error) {
@@ -520,7 +520,7 @@ function renderPaintings() {
           body: formData,
         });
         appendForm.reset();
-        setMessage(messageEl, "作品附件追加成功");
+        setMessage(messageEl, "作品附件已追加");
         await Promise.all([loadPaintingCategories(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
@@ -528,14 +528,14 @@ function renderPaintings() {
     });
 
     deleteBtn.addEventListener("click", async () => {
-      const ok = window.confirm(`确定删除《${item.title}》吗？`);
+      const ok = window.confirm(`确定删除作品《${item.title}》吗？`);
       if (!ok) {
         return;
       }
 
       try {
         await fetchJson(`/api/paintings/${item.id}`, { method: "DELETE" });
-        setMessage(messageEl, "作品删除成功");
+        setMessage(messageEl, "作品已删除");
         await Promise.all([loadPaintingCategories(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
@@ -557,7 +557,7 @@ function renderPaintings() {
           body: JSON.stringify({ content }),
         });
         input.value = "";
-        setMessage(messageEl, "评论已添加");
+        setMessage(messageEl, "评语已添加");
         await loadPaintings();
       } catch (error) {
         setMessage(messageEl, error.message, true);
@@ -619,7 +619,7 @@ function renderMaterials() {
   const total = materialState.items.length;
 
   if (!total) {
-    materialsRoot.innerHTML = `<p>暂无素材，先上传一条参考素材吧。</p>`;
+    materialsRoot.innerHTML = `<p>暂无素材，先收入一条参考素材吧。</p>`;
     materialState.page = 1;
     renderPagination({
       total: 0,
@@ -667,7 +667,7 @@ function renderMaterials() {
     let selectedIndex = 0;
 
     setHighlightedText(titleEl, item.title, keyword);
-    setHighlightedText(descEl, item.description || "暂无说明", keyword);
+    setHighlightedText(descEl, item.description || "暂无素材说明", keyword);
 
     const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
     const currentType = attachments[0]?.type || materialTypeOf(item);
@@ -699,7 +699,7 @@ function renderMaterials() {
           renderCurrentAttachment();
         },
         onDelete: async (attachment) => {
-          const ok = window.confirm("确定删除该附件吗？");
+          const ok = window.confirm("确定删除这条附件吗？");
           if (!ok) {
             return;
           }
@@ -708,7 +708,7 @@ function renderMaterials() {
             await fetchJson(`/api/materials/${item.id}/attachments/${encodeURIComponent(attachment.id)}`, {
               method: "DELETE",
             });
-            setMessage(materialMessageEl, "素材附件删除成功");
+            setMessage(materialMessageEl, "素材附件已删除");
             await Promise.all([loadMaterialCategories(), loadMaterials()]);
           } catch (error) {
             setMessage(materialMessageEl, error.message, true);
@@ -772,7 +772,7 @@ function renderMaterials() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        setMessage(materialMessageEl, "素材修改成功");
+        setMessage(materialMessageEl, "素材已更新");
         editForm.classList.add("hidden");
         await Promise.all([loadMaterialCategories(), loadMaterials()]);
       } catch (error) {
@@ -798,7 +798,7 @@ function renderMaterials() {
           body: formData,
         });
         appendForm.reset();
-        setMessage(materialMessageEl, "素材附件追加成功");
+        setMessage(materialMessageEl, "素材附件已追加");
         await Promise.all([loadMaterialCategories(), loadMaterials()]);
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
@@ -813,7 +813,7 @@ function renderMaterials() {
 
       try {
         await fetchJson(`/api/materials/${item.id}`, { method: "DELETE" });
-        setMessage(materialMessageEl, "素材删除成功");
+        setMessage(materialMessageEl, "素材已删除");
         await Promise.all([loadMaterialCategories(), loadMaterials()]);
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
@@ -854,7 +854,7 @@ uploadForm.addEventListener("submit", async (event) => {
       body: formData,
     });
     uploadForm.reset();
-    setMessage(messageEl, "作品上传成功");
+    setMessage(messageEl, "作品已收入册");
     await Promise.all([loadPaintingCategories(), loadPaintings({ resetPage: true })]);
   } catch (error) {
     setMessage(messageEl, error.message, true);
@@ -882,7 +882,7 @@ resetBtn.addEventListener("click", async () => {
   searchInput.value = "";
   try {
     await loadPaintings({ resetPage: true });
-    setMessage(messageEl, "已重置作品检索条件");
+    setMessage(messageEl, "已清空作品检索条件");
   } catch (error) {
     setMessage(messageEl, error.message, true);
   }
@@ -898,7 +898,7 @@ materialUploadForm.addEventListener("submit", async (event) => {
       body: formData,
     });
     materialUploadForm.reset();
-    setMessage(materialMessageEl, "素材上传成功");
+    setMessage(materialMessageEl, "素材已收入库");
     await Promise.all([loadMaterialCategories(), loadMaterials({ resetPage: true })]);
   } catch (error) {
     setMessage(materialMessageEl, error.message, true);
@@ -926,7 +926,7 @@ materialResetBtn.addEventListener("click", async () => {
   materialSearchInput.value = "";
   try {
     await loadMaterials({ resetPage: true });
-    setMessage(materialMessageEl, "已重置素材检索条件");
+    setMessage(materialMessageEl, "已清空素材检索条件");
   } catch (error) {
     setMessage(materialMessageEl, error.message, true);
   }
