@@ -7,7 +7,49 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main class="container">
+    <section id="auth-screen" class="auth-screen">
+      <div class="auth-panel">
+        <span class="eyebrow">纸墨入门</span>
+        <div class="title-row">
+          <h1>国画典藏管理</h1>
+          <span class="seal">印</span>
+        </div>
+        <p>登录后整理自己的作品、素材、题跋与资料。</p>
+        <div class="auth-grid">
+          <form id="login-form" class="auth-form">
+            <h2>登录</h2>
+            <label>
+              用户名
+              <input name="username" type="text" autocomplete="username" required />
+            </label>
+            <label>
+              密码
+              <input name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <button type="submit">入册</button>
+          </form>
+          <form id="register-form" class="auth-form">
+            <h2>注册</h2>
+            <label>
+              用户名
+              <input name="username" type="text" autocomplete="username" required />
+            </label>
+            <label>
+              显示名称
+              <input name="displayName" type="text" placeholder="如：石涛后学" />
+            </label>
+            <label>
+              密码
+              <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <button type="submit">新建案卷</button>
+          </form>
+        </div>
+        <div id="auth-message" class="message"></div>
+      </div>
+    </section>
+
+    <main id="app-shell" class="container hidden">
       <header class="header">
         <div class="header-copy">
           <span class="eyebrow">纸墨案卷</span>
@@ -21,6 +63,14 @@
           <span>山水</span>
           <span>花鸟</span>
           <span>人物</span>
+        </div>
+        <div class="user-summary">
+          <img id="current-user-avatar" class="user-avatar" alt="" />
+          <div>
+            <strong id="current-user-name"></strong>
+            <span id="current-user-username"></span>
+          </div>
+          <button id="logout-btn" type="button" class="ghost">退出</button>
         </div>
       </header>
 
@@ -40,6 +90,14 @@
           data-tab-target="materials"
         >
           素材管理
+        </button>
+        <button
+          id="tab-btn-profile"
+          class="tab-btn"
+          type="button"
+          data-tab-target="profile"
+        >
+          个人资料
         </button>
       </nav>
 
@@ -172,6 +230,44 @@
             <span id="material-page-info" class="page-info"></span>
             <button id="material-next-page-btn" type="button" class="ghost">下一页</button>
           </div>
+        </section>
+      </section>
+
+      <section id="tab-pane-profile" class="tab-pane" data-tab-pane="profile">
+        <section class="panel profile-panel">
+          <h2>个人资料</h2>
+          <div class="profile-layout">
+            <form id="profile-form">
+              <label>
+                显示名称
+                <input name="displayName" type="text" required />
+              </label>
+              <label>
+                简介
+                <textarea name="bio" rows="5" placeholder="写下你的笔墨偏好、创作方向或收藏说明"></textarea>
+              </label>
+              <button type="submit">保存资料</button>
+            </form>
+            <form id="avatar-form">
+              <label>
+                头像
+                <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" required />
+              </label>
+              <button type="submit">更新头像</button>
+            </form>
+            <form id="password-form">
+              <label>
+                当前密码
+                <input name="currentPassword" type="password" autocomplete="current-password" required />
+              </label>
+              <label>
+                新密码
+                <input name="newPassword" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+              <button type="submit">修改密码</button>
+            </form>
+          </div>
+          <div id="profile-message" class="message"></div>
         </section>
       </section>
     </main>
@@ -330,6 +426,7 @@
       </div>
     </div>
 
+    <script src="/file-selection.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

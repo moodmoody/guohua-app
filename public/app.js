@@ -1,6 +1,16 @@
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const tabPanes = Array.from(document.querySelectorAll(".tab-pane"));
 
+const authScreen = document.getElementById("auth-screen");
+const appShell = document.getElementById("app-shell");
+const loginForm = document.getElementById("login-form");
+const registerForm = document.getElementById("register-form");
+const authMessage = document.getElementById("auth-message");
+const logoutBtn = document.getElementById("logout-btn");
+const currentUserAvatar = document.getElementById("current-user-avatar");
+const currentUserName = document.getElementById("current-user-name");
+const currentUserUsername = document.getElementById("current-user-username");
+
 const uploadForm = document.getElementById("upload-form");
 const filterCategory = document.getElementById("filter-category");
 const searchInput = document.getElementById("search-input");
@@ -32,6 +42,13 @@ const lightboxImage = document.getElementById("lightbox-image");
 const lightboxVideo = document.getElementById("lightbox-video");
 const lightboxCaption = document.getElementById("lightbox-caption");
 const lightboxClose = document.getElementById("lightbox-close");
+const { removeFileAt } = window.FileSelection;
+
+const profileForm = document.getElementById("profile-form");
+const avatarForm = document.getElementById("avatar-form");
+const passwordForm = document.getElementById("password-form");
+const profileMessage = document.getElementById("profile-message");
+let currentUser = null;
 
 const paintingState = {
   items: [],
@@ -50,8 +67,122 @@ function formatTime(iso) {
 }
 
 function setMessage(target, text, isError = false) {
+  if (!target) {
+    return;
+  }
   target.textContent = text;
   target.style.color = isError ? "#8b1d1d" : "#7a6f63";
+}
+
+function renderCurrentUser(user) {
+  currentUser = user;
+  const displayName = user?.displayName || user?.username || "";
+  currentUserName.textContent = displayName;
+  currentUserUsername.textContent = user?.username ? `@${user.username}` : "";
+  if (user?.avatarUrl) {
+    currentUserAvatar.src = user.avatarUrl;
+  } else {
+    currentUserAvatar.removeAttribute("src");
+  }
+  currentUserAvatar.alt = displayName ? `${displayName}头像` : "";
+  currentUserAvatar.classList.toggle("empty", !user?.avatarUrl);
+  profileForm.elements.displayName.value = displayName;
+  profileForm.elements.bio.value = user?.bio || "";
+}
+
+async function loadAppData() {
+  await Promise.all([
+    loadPaintingCategories(),
+    loadPaintings({ resetPage: true }),
+    loadMaterialCategories(),
+    loadMaterials({ resetPage: true }),
+  ]);
+}
+
+function showAuth() {
+  currentUser = null;
+  authScreen.classList.remove("hidden");
+  appShell.classList.add("hidden");
+  paintingState.items = [];
+  materialState.items = [];
+  paintingsRoot.innerHTML = "";
+  materialsRoot.innerHTML = "";
+}
+
+async function showApp(user) {
+  renderCurrentUser(user);
+  authScreen.classList.add("hidden");
+  appShell.classList.remove("hidden");
+  activateTab("paintings");
+  await loadAppData();
+}
+
+async function initializeAuth() {
+  try {
+    const payload = await fetchJson("/api/auth/me");
+    await showApp(payload.user);
+  } catch (_error) {
+    showAuth();
+  }
+}
+
+function updateFileInputFiles(input, files) {
+  const transfer = new DataTransfer();
+  files.forEach((file) => transfer.items.add(file));
+  input.files = transfer.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function renderSelectedFiles(input, listEl) {
+  const files = Array.from(input.files || []);
+  listEl.innerHTML = "";
+  listEl.classList.toggle("hidden", files.length === 0);
+
+  files.forEach((file, index) => {
+    const item = document.createElement("div");
+    item.className = "selected-file-item";
+
+    const name = document.createElement("span");
+    name.className = "selected-file-name";
+    name.textContent = file.name;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "selected-file-remove";
+    removeBtn.textContent = "移除";
+    removeBtn.addEventListener("click", () => {
+      updateFileInputFiles(input, removeFileAt(input.files, index));
+    });
+
+    item.appendChild(name);
+    item.appendChild(removeBtn);
+    listEl.appendChild(item);
+  });
+}
+
+function bindFilePicker(input) {
+  if (!input || input.dataset.filePickerBound === "true") {
+    return;
+  }
+
+  const listEl = document.createElement("div");
+  listEl.className = "selected-file-list hidden";
+  input.insertAdjacentElement("afterend", listEl);
+  input.dataset.filePickerBound = "true";
+
+  input.addEventListener("change", () => {
+    renderSelectedFiles(input, listEl);
+  });
+}
+
+function bindFilePickers(root = document) {
+  root.querySelectorAll('input[type="file"]').forEach(bindFilePicker);
+}
+
+function resetFilePickers(root = document) {
+  root.querySelectorAll('input[type="file"]').forEach((input) => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 }
 
 function activateTab(tabName) {
@@ -373,6 +504,7 @@ function renderPaintings() {
     const attachments = getAttachments(item, item.imageUrl, "image");
     let selectedIndex = 0;
 
+    bindFilePickers(fragment);
     setHighlightedText(titleEl, item.title, keyword);
 
     const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
@@ -473,6 +605,7 @@ function renderPaintings() {
 
     editBtn.addEventListener("click", () => {
       fillPaintingEditForm(editForm, item);
+      resetFilePickers(editForm);
       editForm.classList.remove("hidden");
     });
 
@@ -496,6 +629,7 @@ function renderPaintings() {
         });
         setMessage(messageEl, "作品已更新");
         editForm.classList.add("hidden");
+        resetFilePickers(editForm);
         await Promise.all([loadPaintingCategories(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
@@ -520,6 +654,7 @@ function renderPaintings() {
           body: formData,
         });
         appendForm.reset();
+        resetFilePickers(appendForm);
         setMessage(messageEl, "作品附件已追加");
         await Promise.all([loadPaintingCategories(), loadPaintings()]);
       } catch (error) {
@@ -666,6 +801,7 @@ function renderMaterials() {
     const attachments = getAttachments(item, item.assetUrl, materialTypeOf(item));
     let selectedIndex = 0;
 
+    bindFilePickers(fragment);
     setHighlightedText(titleEl, item.title, keyword);
     setHighlightedText(descEl, item.description || "暂无素材说明", keyword);
 
@@ -751,6 +887,7 @@ function renderMaterials() {
 
     editBtn.addEventListener("click", () => {
       fillMaterialEditForm(editForm, item);
+      resetFilePickers(editForm);
       editForm.classList.remove("hidden");
     });
 
@@ -774,6 +911,7 @@ function renderMaterials() {
         });
         setMessage(materialMessageEl, "素材已更新");
         editForm.classList.add("hidden");
+        resetFilePickers(editForm);
         await Promise.all([loadMaterialCategories(), loadMaterials()]);
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
@@ -798,6 +936,7 @@ function renderMaterials() {
           body: formData,
         });
         appendForm.reset();
+        resetFilePickers(appendForm);
         setMessage(materialMessageEl, "素材附件已追加");
         await Promise.all([loadMaterialCategories(), loadMaterials()]);
       } catch (error) {
@@ -838,6 +977,106 @@ async function loadMaterials({ resetPage = false } = {}) {
   renderMaterials();
 }
 
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await fetchJson("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: loginForm.elements.username.value,
+        password: loginForm.elements.password.value,
+      }),
+    });
+    loginForm.reset();
+    setMessage(authMessage, "");
+    await showApp(payload.user);
+  } catch (error) {
+    setMessage(authMessage, error.message, true);
+  }
+});
+
+registerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await fetchJson("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: registerForm.elements.username.value,
+        displayName: registerForm.elements.displayName.value,
+        password: registerForm.elements.password.value,
+      }),
+    });
+    registerForm.reset();
+    setMessage(authMessage, "");
+    await showApp(payload.user);
+  } catch (error) {
+    setMessage(authMessage, error.message, true);
+  }
+});
+
+logoutBtn.addEventListener("click", async () => {
+  try {
+    await fetchJson("/api/auth/logout", { method: "POST" });
+  } catch (_error) {}
+  showAuth();
+});
+
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await fetchJson("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: profileForm.elements.displayName.value,
+        bio: profileForm.elements.bio.value,
+      }),
+    });
+    renderCurrentUser(payload.user);
+    setMessage(profileMessage, "资料已保存");
+  } catch (error) {
+    setMessage(profileMessage, error.message, true);
+  }
+});
+
+avatarForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(avatarForm);
+  try {
+    const payload = await fetchJson("/api/profile/avatar", {
+      method: "POST",
+      body: formData,
+    });
+    avatarForm.reset();
+    resetFilePickers(avatarForm);
+    renderCurrentUser(payload.user);
+    setMessage(profileMessage, "头像已更新");
+  } catch (error) {
+    setMessage(profileMessage, error.message, true);
+  }
+});
+
+passwordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = await fetchJson("/api/profile/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        currentPassword: passwordForm.elements.currentPassword.value,
+        newPassword: passwordForm.elements.newPassword.value,
+      }),
+    });
+    passwordForm.reset();
+    renderCurrentUser(payload.user);
+    setMessage(profileMessage, "密码已更新");
+  } catch (error) {
+    setMessage(profileMessage, error.message, true);
+  }
+});
+
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
     activateTab(button.dataset.tabTarget);
@@ -854,6 +1093,7 @@ uploadForm.addEventListener("submit", async (event) => {
       body: formData,
     });
     uploadForm.reset();
+    resetFilePickers(uploadForm);
     setMessage(messageEl, "作品已收入册");
     await Promise.all([loadPaintingCategories(), loadPaintings({ resetPage: true })]);
   } catch (error) {
@@ -898,6 +1138,7 @@ materialUploadForm.addEventListener("submit", async (event) => {
       body: formData,
     });
     materialUploadForm.reset();
+    resetFilePickers(materialUploadForm);
     setMessage(materialMessageEl, "素材已收入库");
     await Promise.all([loadMaterialCategories(), loadMaterials({ resetPage: true })]);
   } catch (error) {
@@ -1007,16 +1248,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 (async () => {
-  activateTab("paintings");
-  try {
-    await Promise.all([
-      loadPaintingCategories(),
-      loadPaintings({ resetPage: true }),
-      loadMaterialCategories(),
-      loadMaterials({ resetPage: true }),
-    ]);
-  } catch (error) {
-    setMessage(messageEl, error.message, true);
-    setMessage(materialMessageEl, error.message, true);
-  }
+  bindFilePickers();
+  await initializeAuth();
 })();

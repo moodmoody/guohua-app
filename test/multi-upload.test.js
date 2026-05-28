@@ -74,6 +74,7 @@ function startServer(port, storage) {
       SERVER_ROOT: process.cwd(),
       UPLOAD_DIR: storage.uploadDir,
       DATA_FILE: storage.dataFile,
+      LEGACY_USER_PASSWORD: 'legacy-pass-123',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -101,8 +102,8 @@ function startServer(port, storage) {
         }
 
         try {
-          const res = await fetch(`http://127.0.0.1:${port}/api/paintings`);
-          if (res.ok) {
+          const res = await fetch(`http://127.0.0.1:${port}/api/auth/me`);
+          if (res.status === 401) {
             return;
           }
         } catch (_error) {
@@ -135,6 +136,7 @@ function startServer(port, storage) {
 let server;
 let baseUrl;
 let storage;
+let authCookie;
 
 test.before(async () => {
   const port = await getFreePort();
@@ -142,6 +144,17 @@ test.before(async () => {
   server = startServer(port, storage);
   await server.waitUntilReady();
   baseUrl = `http://127.0.0.1:${port}`;
+
+  const registerRes = await fetch(`${baseUrl}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: 'multi-upload-user',
+      password: 'brush-pass-123',
+    }),
+  });
+  assert.equal(registerRes.status, 201);
+  authCookie = registerRes.headers.get('set-cookie').split(';')[0];
 });
 
 test.after(async () => {
@@ -158,9 +171,18 @@ function makePngBlob(seed) {
   return new Blob([bytes], { type: 'image/png' });
 }
 
+function makeSizedPngBlob(sizeBytes, fillByte) {
+  const bytes = Buffer.alloc(sizeBytes, fillByte);
+  return new Blob([bytes], { type: 'image/png' });
+}
+
 function attachmentPathId(attachment) {
   const value = attachment?.id ?? path.basename(String(attachment?.url ?? ''));
   return String(value).trim();
+}
+
+function authHeaders(extra = {}) {
+  return { ...extra, Cookie: authCookie };
 }
 
 test('single-file create endpoints are healthy for paintings and materials', async () => {
@@ -172,6 +194,7 @@ test('single-file create endpoints are healthy for paintings and materials', asy
 
   const paintingRes = await fetch(`${baseUrl}/api/paintings`, {
     method: 'POST',
+    headers: authHeaders(),
     body: paintingForm,
   });
 
@@ -190,6 +213,7 @@ test('single-file create endpoints are healthy for paintings and materials', asy
 
   const materialRes = await fetch(`${baseUrl}/api/materials`, {
     method: 'POST',
+    headers: authHeaders(),
     body: materialForm,
   });
 
@@ -211,6 +235,7 @@ test('POST /api/paintings with multiple images returns one object with attachmen
 
   const res = await fetch(`${baseUrl}/api/paintings`, {
     method: 'POST',
+    headers: authHeaders(),
     body: form,
   });
 
@@ -221,7 +246,7 @@ test('POST /api/paintings with multiple images returns one object with attachmen
   assert.ok(Array.isArray(body.attachments), 'expected attachments array on returned record');
   assert.equal(body.attachments.length, 2);
 
-  const listRes = await fetch(`${baseUrl}/api/paintings`);
+  const listRes = await fetch(`${baseUrl}/api/paintings`, { headers: authHeaders() });
   assert.equal(listRes.status, 200);
   const listBody = await listRes.json();
   assert.ok(Array.isArray(listBody), 'expected list endpoint to return an array');
@@ -241,6 +266,7 @@ test('POST /api/materials with multiple assets returns one object with attachmen
 
   const res = await fetch(`${baseUrl}/api/materials`, {
     method: 'POST',
+    headers: authHeaders(),
     body: form,
   });
 
@@ -251,7 +277,7 @@ test('POST /api/materials with multiple assets returns one object with attachmen
   assert.ok(Array.isArray(body.attachments), 'expected attachments array on returned record');
   assert.equal(body.attachments.length, 2);
 
-  const listRes = await fetch(`${baseUrl}/api/materials`);
+  const listRes = await fetch(`${baseUrl}/api/materials`, { headers: authHeaders() });
   assert.equal(listRes.status, 200);
   const listBody = await listRes.json();
   assert.ok(Array.isArray(listBody), 'expected list endpoint to return an array');
@@ -259,6 +285,27 @@ test('POST /api/materials with multiple assets returns one object with attachmen
   assert.ok(created, 'expected created material to exist in list response');
   assert.equal(Array.isArray(created.attachments), true);
   assert.equal(created.attachments.length, 2);
+});
+
+test('POST /api/materials accepts 81MB uploads within the deployed limit', async () => {
+  const form = new FormData();
+  form.append('title', 'Large Material Upload');
+  form.append('category', 'reference');
+  form.append('description', 'Should accept materials above 80MB');
+  form.append('asset', makeSizedPngBlob(81 * 1024 * 1024, 5), 'large-material.png');
+
+  const res = await fetch(`${baseUrl}/api/materials`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+  });
+
+  assert.equal(res.status, 201);
+
+  const body = await res.json();
+  assert.equal(body.title, 'Large Material Upload');
+  assert.equal(Array.isArray(body.attachments), true);
+  assert.equal(body.attachments.length, 1);
 });
 
 test('POST /api/materials/:id/attachments appends multiple assets to existing attachments', async () => {
@@ -270,6 +317,7 @@ test('POST /api/materials/:id/attachments appends multiple assets to existing at
 
   const createRes = await fetch(`${baseUrl}/api/materials`, {
     method: 'POST',
+    headers: authHeaders(),
     body: createForm,
   });
 
@@ -284,6 +332,7 @@ test('POST /api/materials/:id/attachments appends multiple assets to existing at
 
   const appendRes = await fetch(`${baseUrl}/api/materials/${created.id}/attachments`, {
     method: 'POST',
+    headers: authHeaders(),
     body: appendForm,
   });
 
@@ -295,7 +344,7 @@ test('POST /api/materials/:id/attachments appends multiple assets to existing at
   assert.ok(Array.isArray(appendBody.attachments));
   assert.equal(appendBody.attachments.length, created.attachments.length + 2);
 
-  const getRes = await fetch(`${baseUrl}/api/materials/${created.id}`);
+  const getRes = await fetch(`${baseUrl}/api/materials/${created.id}`, { headers: authHeaders() });
   assert.equal(getRes.status, 200);
   const persisted = await getRes.json();
   assert.ok(Array.isArray(persisted.attachments));
@@ -312,6 +361,7 @@ test('DELETE /api/paintings/:id/attachments/:attachmentId removes one attachment
 
   const createRes = await fetch(`${baseUrl}/api/paintings`, {
     method: 'POST',
+    headers: authHeaders(),
     body: createForm,
   });
 
@@ -325,7 +375,7 @@ test('DELETE /api/paintings/:id/attachments/:attachmentId removes one attachment
 
   const deleteRes = await fetch(
     `${baseUrl}/api/paintings/${created.id}/attachments/${encodeURIComponent(attachmentId)}`,
-    { method: 'DELETE' }
+    { method: 'DELETE', headers: authHeaders() }
   );
 
   assert.ok(
@@ -333,7 +383,7 @@ test('DELETE /api/paintings/:id/attachments/:attachmentId removes one attachment
     `expected success status when deleting one attachment, got ${deleteRes.status}`
   );
 
-  const getRes = await fetch(`${baseUrl}/api/paintings/${created.id}`);
+  const getRes = await fetch(`${baseUrl}/api/paintings/${created.id}`, { headers: authHeaders() });
   assert.equal(getRes.status, 200);
   const afterDelete = await getRes.json();
   assert.ok(Array.isArray(afterDelete.attachments));
@@ -355,6 +405,7 @@ test('DELETE /api/paintings/:id/attachments/:attachmentId rejects deleting the l
 
   const createRes = await fetch(`${baseUrl}/api/paintings`, {
     method: 'POST',
+    headers: authHeaders(),
     body: createForm,
   });
 
@@ -367,7 +418,7 @@ test('DELETE /api/paintings/:id/attachments/:attachmentId rejects deleting the l
   assert.ok(attachmentId, 'expected a usable attachment id');
 
   const deleteUrl = `${baseUrl}/api/paintings/${created.id}/attachments/${encodeURIComponent(attachmentId)}`;
-  const deleteRes = await fetch(deleteUrl, { method: 'DELETE' });
+  const deleteRes = await fetch(deleteUrl, { method: 'DELETE', headers: authHeaders() });
 
   assert.equal(
     deleteRes.status,
@@ -424,7 +475,17 @@ test('legacy records with imageUrl/assetUrl are normalized to attachments', asyn
 
   await fs.writeFile(storage.dataFile, JSON.stringify(legacyPayload, null, 2), 'utf8');
 
-  const paintingsRes = await fetch(`${baseUrl}/api/paintings`);
+  const legacyLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'legacy', password: 'legacy-pass-123' }),
+  });
+  assert.equal(legacyLogin.status, 200);
+  const legacyCookie = legacyLogin.headers.get('set-cookie').split(';')[0];
+
+  const paintingsRes = await fetch(`${baseUrl}/api/paintings`, {
+    headers: { Cookie: legacyCookie },
+  });
   assert.equal(paintingsRes.status, 200);
   const paintings = await paintingsRes.json();
   const legacyPainting = paintings.find((item) => item.id === 1);
@@ -434,7 +495,9 @@ test('legacy records with imageUrl/assetUrl are normalized to attachments', asyn
   assert.equal(legacyPainting.attachments[0].url, '/uploads/legacy-painting.png');
   assert.equal(legacyPainting.attachments[0].type, 'image');
 
-  const materialsRes = await fetch(`${baseUrl}/api/materials`);
+  const materialsRes = await fetch(`${baseUrl}/api/materials`, {
+    headers: { Cookie: legacyCookie },
+  });
   assert.equal(materialsRes.status, 200);
   const materials = await materialsRes.json();
   const legacyMaterial = materials.find((item) => item.id === 1);
