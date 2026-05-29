@@ -72,7 +72,7 @@ function startServer(port, storage) {
       SERVER_ROOT: process.cwd(),
       UPLOAD_DIR: storage.uploadDir,
       DATA_FILE: storage.dataFile,
-      LEGACY_USER_PASSWORD: "legacy-pass-123",
+      LEGACY_USER_PASSWORD: "lulia-pass-123",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

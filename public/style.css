@@ -104,10 +104,16 @@ body.modal-open {
 }
 
 .auth-form {
+  display: flex;
+  flex-direction: column;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 250, 240, 0.68);
+}
+
+.auth-form button {
+  margin-top: auto;
 }
 
 .header {

@@ -31,6 +31,7 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 120000;
 const PASSWORD_KEY_LENGTH = 32;
 const PASSWORD_DIGEST = "sha256";
+const DEFAULT_USER_USERNAME = "lulia";
 let generatedLegacyPassword = "";
 let legacyPasswordLogged = false;
 
@@ -149,20 +150,20 @@ function normalizeUserRecord(user = {}) {
   };
 }
 
-function createLegacyUser(id) {
+function createDefaultUser(id) {
   const password = process.env.LEGACY_USER_PASSWORD || generatedLegacyPassword || crypto.randomBytes(18).toString("base64url");
   generatedLegacyPassword = password;
   if (!process.env.LEGACY_USER_PASSWORD && !legacyPasswordLogged) {
-    console.log(`Generated legacy user password: ${password}`);
+    console.log(`Generated ${DEFAULT_USER_USERNAME} user password: ${password}`);
     legacyPasswordLogged = true;
   }
 
   const now = new Date().toISOString();
   return {
     id,
-    username: "legacy",
+    username: DEFAULT_USER_USERNAME,
     passwordHash: hashPassword(password),
-    displayName: "legacy",
+    displayName: DEFAULT_USER_USERNAME,
     bio: "",
     avatarUrl: "",
     createdAt: now,
@@ -419,29 +420,73 @@ function normalizeMaterialRecord(item = {}) {
 
 function normalizeDb(raw = {}) {
   const now = Date.now();
-  const users = Array.isArray(raw.users)
+  let users = Array.isArray(raw.users)
     ? raw.users
         .map((user) => normalizeUserRecord(user))
         .filter((user) => Number.isInteger(user.id) && user.id > 0 && user.username)
     : [];
   let userLastId = Number.isInteger(raw.userLastId) ? raw.userLastId : getMaxId(users);
+  let defaultUser = users.find((user) => user.username === DEFAULT_USER_USERNAME);
+  const legacyUsers = users.filter((user) => user.username === "legacy");
+  let renamedLegacyUser = false;
+  if (!defaultUser && legacyUsers.length > 0) {
+    defaultUser = legacyUsers[0];
+    defaultUser.username = DEFAULT_USER_USERNAME;
+    renamedLegacyUser = true;
+    if (defaultUser.displayName === "legacy") {
+      defaultUser.displayName = DEFAULT_USER_USERNAME;
+    }
+    if (process.env.LEGACY_USER_PASSWORD) {
+      defaultUser.passwordHash = hashPassword(process.env.LEGACY_USER_PASSWORD);
+    }
+    defaultUser.updatedAt = new Date().toISOString();
+  }
+  if (defaultUser && legacyUsers.length > 0) {
+    const legacyUserIds = new Set(
+      legacyUsers
+        .filter((user) => user.id !== defaultUser.id)
+        .map((user) => user.id)
+    );
+    raw.paintings = Array.isArray(raw.paintings)
+      ? raw.paintings.map((item) => ({
+          ...item,
+          ownerUserId: legacyUserIds.has(item?.ownerUserId) ? defaultUser.id : item?.ownerUserId,
+        }))
+      : raw.paintings;
+    raw.materials = Array.isArray(raw.materials)
+      ? raw.materials.map((item) => ({
+          ...item,
+          ownerUserId: legacyUserIds.has(item?.ownerUserId) ? defaultUser.id : item?.ownerUserId,
+        }))
+      : raw.materials;
+    raw.sessions = Array.isArray(raw.sessions)
+      ? raw.sessions.map((session) => ({
+          ...session,
+          userId: legacyUserIds.has(session?.userId) ? defaultUser.id : session?.userId,
+        }))
+      : raw.sessions;
+    if (!renamedLegacyUser && process.env.LEGACY_USER_PASSWORD && legacyUserIds.size > 0) {
+      defaultUser.passwordHash = hashPassword(process.env.LEGACY_USER_PASSWORD);
+      defaultUser.updatedAt = new Date().toISOString();
+    }
+    users = users.filter((user) => user.username !== "legacy");
+  }
   const needsLegacyUser =
     (Array.isArray(raw.paintings) && raw.paintings.some((item) => !Number.isInteger(item?.ownerUserId))) ||
     (Array.isArray(raw.materials) && raw.materials.some((item) => !Number.isInteger(item?.ownerUserId)));
-  let legacyUser = users.find((user) => user.username === "legacy");
-  if (needsLegacyUser && !legacyUser) {
-    legacyUser = createLegacyUser(userLastId + 1);
-    users.push(legacyUser);
-    userLastId = legacyUser.id;
+  if (needsLegacyUser && !defaultUser) {
+    defaultUser = createDefaultUser(userLastId + 1);
+    users.push(defaultUser);
+    userLastId = defaultUser.id;
   }
-  const legacyUserId = legacyUser?.id;
+  const defaultUserId = defaultUser?.id;
 
   const paintings = Array.isArray(raw.paintings)
     ? raw.paintings.map((item) => {
         const record = normalizePaintingRecord(item);
         return {
           ...record,
-          ownerUserId: Number.isInteger(record.ownerUserId) ? record.ownerUserId : legacyUserId,
+          ownerUserId: Number.isInteger(record.ownerUserId) ? record.ownerUserId : defaultUserId,
         };
       })
     : [];
@@ -450,7 +495,7 @@ function normalizeDb(raw = {}) {
         const record = normalizeMaterialRecord(item);
         return {
           ...record,
-          ownerUserId: Number.isInteger(record.ownerUserId) ? record.ownerUserId : legacyUserId,
+          ownerUserId: Number.isInteger(record.ownerUserId) ? record.ownerUserId : defaultUserId,
         };
       })
     : [];

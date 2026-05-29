@@ -74,7 +74,7 @@ function startServer(port, storage) {
       SERVER_ROOT: process.cwd(),
       UPLOAD_DIR: storage.uploadDir,
       DATA_FILE: storage.dataFile,
-      LEGACY_USER_PASSWORD: 'legacy-pass-123',
+      LEGACY_USER_PASSWORD: 'lulia-pass-123',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -478,7 +478,7 @@ test('legacy records with imageUrl/assetUrl are normalized to attachments', asyn
   const legacyLogin = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'legacy', password: 'legacy-pass-123' }),
+    body: JSON.stringify({ username: 'lulia', password: 'lulia-pass-123' }),
   });
   assert.equal(legacyLogin.status, 200);
   const legacyCookie = legacyLogin.headers.get('set-cookie').split(';')[0];

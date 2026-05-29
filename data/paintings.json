@@ -1,6 +1,20 @@
 {
-  "paintingLastId": 3,
-  "materialLastId": 0,
+  "userLastId": 1,
+  "users": [
+    {
+      "id": 1,
+      "username": "lulia",
+      "passwordHash": "pbkdf2$120000$sha256$dbb0bede44be9193d4320884aa021203$d866d49f065c9296e2d64938c7306681e7915790be04535e98cb51b626fb9652",
+      "displayName": "lulia",
+      "bio": "",
+      "avatarUrl": "",
+      "createdAt": "2026-05-28T15:34:39.297Z",
+      "updatedAt": "2026-05-28T15:34:39.297Z"
+    }
+  ],
+  "sessions": [],
+  "paintingLastId": 15,
+  "materialLastId": 10,
   "paintings": [
     {
       "id": 1,
@@ -10,7 +24,15 @@
       "imageUrl": "/uploads/1775397732483-_v5a6670.jpg",
       "comments": [],
       "createdAt": "2026-04-05T14:02:12.489Z",
-      "updatedAt": "2026-04-13T16:42:25.560Z"
+      "updatedAt": "2026-04-13T16:42:25.560Z",
+      "attachments": [
+        {
+          "id": "1775397732483-_v5a6670.jpg",
+          "url": "/uploads/1775397732483-_v5a6670.jpg",
+          "type": "image"
+        }
+      ],
+      "ownerUserId": 1
     },
     {
       "id": 2,
@@ -19,7 +41,15 @@
       "description": "",
       "imageUrl": "/uploads/1775484934261-IMG_2081.jpeg",
       "comments": [],
-      "createdAt": "2026-04-06T14:15:34.469Z"
+      "createdAt": "2026-04-06T14:15:34.469Z",
+      "attachments": [
+        {
+          "id": "1775484934261-IMG_2081.jpeg",
+          "url": "/uploads/1775484934261-IMG_2081.jpeg",
+          "type": "image"
+        }
+      ],
+      "ownerUserId": 1
     },
     {
       "id": 3,
@@ -29,8 +59,140 @@
       "imageUrl": "/uploads/1776091361828-IMG_2643.jpeg",
       "comments": [],
       "createdAt": "2026-04-13T14:42:42.235Z",
-      "updatedAt": "2026-04-13T14:45:20.608Z"
+      "updatedAt": "2026-04-13T14:45:20.608Z",
+      "attachments": [
+        {
+          "id": "1776091361828-IMG_2643.jpeg",
+          "url": "/uploads/1776091361828-IMG_2643.jpeg",
+          "type": "image"
+        }
+      ],
+      "ownerUserId": 1
+    },
+    {
+      "id": 4,
+      "title": "老鹰",
+      "category": "花鸟",
+      "description": "老鹰写意",
+      "imageUrl": "/uploads/1778318646683-IMG_3926.jpeg",
+      "comments": [],
+      "createdAt": "2026-05-09T09:24:06.872Z",
+      "attachments": [
+        {
+          "id": "1778318646683-IMG_3926.jpeg",
+          "url": "/uploads/1778318646683-IMG_3926.jpeg",
+          "type": "image"
+        }
+      ],
+      "ownerUserId": 1
+    },
+    {
+      "id": 14,
+      "title": "测试",
+      "category": "山水",
+      "description": "测试",
+      "imageUrl": "/uploads/1778558806973-777de4d718de2c55961f4ccb4f0649b4.jpeg",
+      "attachments": [
+        {
+          "id": "1778558806973-777de4d718de2c55961f4ccb4f0649b4.jpeg",
+          "url": "/uploads/1778558806973-777de4d718de2c55961f4ccb4f0649b4.jpeg",
+          "type": "image"
+        },
+        {
+          "id": "1778558807728-4a11dd972bc18262b06f9fca38f19d1b.jpeg",
+          "url": "/uploads/1778558807728-4a11dd972bc18262b06f9fca38f19d1b.jpeg",
+          "type": "image"
+        },
+        {
+          "id": "1778558808482-5384.jpeg",
+          "url": "/uploads/1778558808482-5384.jpeg",
+          "type": "image"
+        }
+      ],
+      "comments": [],
+      "createdAt": "2026-05-12T04:06:48.700Z",
+      "updatedAt": "2026-05-12T04:20:59.416Z",
+      "ownerUserId": 1
+    },
+    {
+      "id": 15,
+      "title": "荔枝",
+      "category": "花鸟",
+      "description": "",
+      "imageUrl": "/uploads/1778666439229-IMG_4440.png",
+      "attachments": [
+        {
+          "id": "1778666439229-IMG_4440.png",
+          "url": "/uploads/1778666439229-IMG_4440.png",
+          "type": "image"
+        },
+        {
+          "id": "1778666439539-IMG_4441.png",
+          "url": "/uploads/1778666439539-IMG_4441.png",
+          "type": "image"
+        },
+        {
+          "id": "1778666439787-IMG_4442.png",
+          "url": "/uploads/1778666439787-IMG_4442.png",
+          "type": "image"
+        },
+        {
+          "id": "1778666489146-IMG_4575.jpeg",
+          "url": "/uploads/1778666489146-IMG_4575.jpeg",
+          "type": "image"
+        }
+      ],
+      "comments": [],
+      "createdAt": "2026-05-13T10:00:40.081Z",
+      "updatedAt": "2026-05-13T10:01:29.236Z",
+      "ownerUserId": 1
     }
   ],
-  "materials": []
+  "materials": [
+    {
+      "id": 4,
+      "title": "没骨画素材",
+      "category": "视频教程",
+      "description": "没骨画",
+      "assetType": "video",
+      "assetUrl": "/uploads/1778251662752-IMG_5496.mov",
+      "createdAt": "2026-05-08T14:47:43.403Z",
+      "attachments": [
+        {
+          "id": "1778251662752-IMG_5496.mov",
+          "url": "/uploads/1778251662752-IMG_5496.mov",
+          "type": "video"
+        }
+      ],
+      "ownerUserId": 1
+    },
+    {
+      "id": 10,
+      "title": "荔枝",
+      "category": "临摹",
+      "description": "李永波老师教学",
+      "assetType": "image",
+      "assetUrl": "/uploads/1778666586519-IMG_4440.png",
+      "attachments": [
+        {
+          "id": "1778666586519-IMG_4440.png",
+          "url": "/uploads/1778666586519-IMG_4440.png",
+          "type": "image"
+        },
+        {
+          "id": "1778666586804-IMG_4441.png",
+          "url": "/uploads/1778666586804-IMG_4441.png",
+          "type": "image"
+        },
+        {
+          "id": "1778666587028-IMG_4442.png",
+          "url": "/uploads/1778666587028-IMG_4442.png",
+          "type": "image"
+        }
+      ],
+      "createdAt": "2026-05-13T10:03:07.262Z",
+      "updatedAt": "2026-05-13T10:03:16.210Z",
+      "ownerUserId": 1
+    }
+  ]
 }
