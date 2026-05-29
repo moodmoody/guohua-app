@@ -212,23 +212,26 @@ body.modal-open {
 }
 
 .ink-mark::before {
-  left: 6px;
-  right: 6px;
-  bottom: 15px;
-  height: 28px;
-  clip-path: polygon(0 86%, 12% 66%, 24% 72%, 42% 28%, 58% 66%, 72% 48%, 100% 88%, 100% 100%, 0 100%);
-  background: linear-gradient(160deg, rgba(36, 31, 26, 0.88), rgba(49, 95, 69, 0.68));
-  filter: blur(0.1px);
+  left: 7px;
+  right: 8px;
+  bottom: 18px;
+  height: 18px;
+  border-radius: 999px 38px 999px 42px;
+  background: linear-gradient(105deg, rgba(36, 31, 26, 0.88), rgba(49, 95, 69, 0.62));
+  transform: rotate(-8deg) skewX(-18deg);
+  filter: blur(0.15px);
 }
 
 .ink-mark::after {
-  left: 14px;
-  right: 12px;
-  bottom: 10px;
-  height: 2px;
-  border-radius: 999px;
-  background: rgba(170, 61, 45, 0.45);
-  box-shadow: 14px 5px 0 rgba(49, 95, 69, 0.22);
+  right: 10px;
+  top: 13px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(170, 61, 45, 0.78);
+  box-shadow:
+    -18px 20px 0 rgba(49, 95, 69, 0.22),
+    -36px 23px 0 rgba(36, 31, 26, 0.18);
 }
 
 .header p {
