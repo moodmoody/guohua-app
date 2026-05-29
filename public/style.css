@@ -190,22 +190,45 @@ body.modal-open {
   font-weight: 500;
 }
 
-.seal {
+.ink-mark {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 7px;
+  width: 76px;
+  height: 50px;
+  flex: 0 0 auto;
+  border-radius: 50%;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 38%),
-    linear-gradient(145deg, var(--cinnabar), var(--cinnabar-deep));
-  color: #fff3e7;
-  font-size: 18px;
-  font-family: "STXingkai", "KaiTi", "Microsoft YaHei", sans-serif;
-  font-weight: 600;
-  transform: rotate(-6deg);
-  box-shadow: 0 9px 18px rgba(117, 37, 31, 0.25);
+    radial-gradient(ellipse at 45% 64%, rgba(36, 31, 26, 0.1), transparent 58%),
+    radial-gradient(ellipse at 68% 68%, rgba(49, 95, 69, 0.13), transparent 56%);
+  overflow: hidden;
+}
+
+.ink-mark::before,
+.ink-mark::after {
+  content: "";
+  position: absolute;
+}
+
+.ink-mark::before {
+  left: 6px;
+  right: 6px;
+  bottom: 15px;
+  height: 28px;
+  clip-path: polygon(0 86%, 12% 66%, 24% 72%, 42% 28%, 58% 66%, 72% 48%, 100% 88%, 100% 100%, 0 100%);
+  background: linear-gradient(160deg, rgba(36, 31, 26, 0.88), rgba(49, 95, 69, 0.68));
+  filter: blur(0.1px);
+}
+
+.ink-mark::after {
+  left: 14px;
+  right: 12px;
+  bottom: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(170, 61, 45, 0.45);
+  box-shadow: 14px 5px 0 rgba(49, 95, 69, 0.22);
 }
 
 .header p {
@@ -352,15 +375,23 @@ body.modal-open {
 .profile-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+  grid-auto-rows: minmax(0, 1fr);
+  align-items: stretch;
   gap: 16px;
 }
 
 .profile-layout form {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
 .profile-layout form:first-child {
   grid-row: span 2;
+}
+
+.profile-layout button {
+  margin-top: auto;
 }
 
 h2 {
@@ -935,11 +966,9 @@ mark.hl {
     font-size: 30px;
   }
 
-  .seal {
-    width: 46px;
-    height: 46px;
-    font-size: 15px;
-    flex: 0 0 auto;
+  .ink-mark {
+    width: 62px;
+    height: 42px;
   }
 
   .header p {
