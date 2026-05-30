@@ -82,7 +82,7 @@ body.modal-open {
 }
 
 .auth-panel {
-  width: min(960px, 100%);
+  width: min(1040px, 100%);
   padding: 30px;
   border: 1px solid rgba(90, 67, 38, 0.24);
   border-radius: 8px;
@@ -99,8 +99,8 @@ body.modal-open {
 
 .auth-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: minmax(420px, 1.22fr) minmax(320px, 0.92fr);
+  gap: 20px;
 }
 
 .auth-form {
@@ -119,7 +119,7 @@ body.modal-open {
 .header {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 26px;
   margin-bottom: 18px;
   padding: 18px 24px 14px;
@@ -156,7 +156,7 @@ body.modal-open {
 .header-copy {
   position: relative;
   z-index: 1;
-  padding-right: 272px;
+  padding-right: 286px;
 }
 
 .eyebrow {
@@ -243,28 +243,6 @@ body.modal-open {
   line-height: 1.65;
 }
 
-.header-aside {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(3, 34px);
-  gap: 8px;
-  align-self: end;
-  padding: 2px 0;
-}
-
-.header-aside span {
-  display: grid;
-  place-items: center;
-  min-height: 116px;
-  border: 1px solid rgba(170, 61, 45, 0.34);
-  border-radius: 999px;
-  color: var(--cinnabar-deep);
-  background: rgba(255, 250, 240, 0.62);
-  font-family: "STXingkai", "KaiTi", "Microsoft YaHei", sans-serif;
-  writing-mode: vertical-rl;
-}
-
 .user-summary {
   grid-column: auto;
   grid-row: 1;
@@ -277,7 +255,7 @@ body.modal-open {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 250px;
+  max-width: 262px;
   padding: 6px 8px;
   border: 1px solid rgba(191, 164, 124, 0.62);
   border-radius: 6px;
@@ -307,6 +285,15 @@ body.modal-open {
 .user-summary span {
   color: var(--ink-faint);
   font-size: 12px;
+}
+
+.user-bio {
+  max-width: 168px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .user-summary button {
@@ -913,7 +900,6 @@ mark.hl {
 
 @media (max-width: 900px) {
   .header {
-    grid-template-columns: 1fr;
     padding: 18px 16px 14px;
   }
 
@@ -921,18 +907,6 @@ mark.hl {
     right: 24px;
     bottom: 72px;
     font-size: 38px;
-  }
-
-  .header-aside {
-    display: flex;
-    margin-top: 4px;
-  }
-
-  .header-aside span {
-    min-height: 0;
-    min-width: 78px;
-    padding: 8px 12px;
-    writing-mode: horizontal-tb;
   }
 
   .cards {
@@ -995,10 +969,6 @@ mark.hl {
 
   .header p {
     font-size: 15px;
-  }
-
-  .header-aside {
-    flex-wrap: wrap;
   }
 
   .header-copy {

@@ -10,6 +10,7 @@ const logoutBtn = document.getElementById("logout-btn");
 const currentUserAvatar = document.getElementById("current-user-avatar");
 const currentUserName = document.getElementById("current-user-name");
 const currentUserUsername = document.getElementById("current-user-username");
+const currentUserBio = document.getElementById("current-user-bio");
 
 const uploadForm = document.getElementById("upload-form");
 const filterCategory = document.getElementById("filter-category");
@@ -79,6 +80,7 @@ function renderCurrentUser(user) {
   const displayName = user?.displayName || user?.username || "";
   currentUserName.textContent = displayName;
   currentUserUsername.textContent = user?.username ? `@${user.username}` : "";
+  currentUserBio.textContent = (user?.bio || "").trim() || "未填写简介";
   if (user?.avatarUrl) {
     currentUserAvatar.src = user.avatarUrl;
   } else {
