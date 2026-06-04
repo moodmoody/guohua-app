@@ -55,12 +55,16 @@ const paintingState = {
   items: [],
   page: 1,
   pageSize: 6,
+  total: 0,
+  totalPages: 1,
 };
 
 const materialState = {
   items: [],
   page: 1,
   pageSize: 6,
+  total: 0,
+  totalPages: 1,
 };
 
 function formatTime(iso) {
@@ -111,7 +115,13 @@ function showAuth() {
   authScreen.classList.remove("hidden");
   appShell.classList.add("hidden");
   paintingState.items = [];
+  paintingState.total = 0;
+  paintingState.page = 1;
+  paintingState.totalPages = 1;
   materialState.items = [];
+  materialState.total = 0;
+  materialState.page = 1;
+  materialState.totalPages = 1;
   paintingsRoot.innerHTML = "";
   materialsRoot.innerHTML = "";
 }
@@ -381,16 +391,36 @@ function setPreviewMedia({ imageEl, videoEl, tipEl, attachment, title }) {
   }
 
   if (attachment.type === "video") {
+    videoEl.preload = "metadata";
     videoEl.src = attachment.url;
     videoEl.classList.remove("hidden");
     tipEl.textContent = "单击预览视频";
     return;
   }
 
+  imageEl.loading = "lazy";
+  imageEl.decoding = "async";
   imageEl.src = attachment.url;
   imageEl.alt = title;
   imageEl.classList.remove("hidden");
   tipEl.textContent = "单击预览图片";
+}
+
+function applyListPayload(state, payload) {
+  if (Array.isArray(payload)) {
+    state.items = payload;
+    state.total = payload.length;
+    state.totalPages = Math.max(1, Math.ceil(payload.length / state.pageSize));
+    return;
+  }
+
+  state.items = Array.isArray(payload?.items) ? payload.items : [];
+  state.total = Number.isInteger(payload?.total) ? payload.total : state.items.length;
+  state.page = Number.isInteger(payload?.page) ? payload.page : state.page;
+  state.pageSize = Number.isInteger(payload?.pageSize) ? payload.pageSize : state.pageSize;
+  state.totalPages = Number.isInteger(payload?.totalPages)
+    ? payload.totalPages
+    : Math.max(1, Math.ceil(state.total / state.pageSize));
 }
 
 function renderAttachmentStrip({ container, attachments, selectedIndex, onSelect, onDelete }) {
@@ -444,6 +474,8 @@ function buildPaintingQuery() {
   if (q) {
     params.set("q", q);
   }
+  params.set("page", String(paintingState.page));
+  params.set("pageSize", String(paintingState.pageSize));
 
   const query = params.toString();
   return query ? `/api/paintings?${query}` : "/api/paintings";
@@ -459,7 +491,7 @@ function fillPaintingEditForm(form, item) {
 function renderPaintings() {
   paintingsRoot.innerHTML = "";
   const keyword = searchInput.value.trim();
-  const total = paintingState.items.length;
+  const total = paintingState.total;
 
   if (!total) {
     paintingsRoot.innerHTML = `<p>暂无作品，先收入一幅画作吧。</p>`;
@@ -487,8 +519,7 @@ function renderPaintings() {
   });
   paintingState.page = paginationInfo.currentPage;
 
-  const startIndex = (paintingState.page - 1) * paintingState.pageSize;
-  const pageItems = paintingState.items.slice(startIndex, startIndex + paintingState.pageSize);
+  const pageItems = paintingState.items;
 
   pageItems.forEach((item) => {
     const fragment = paintingTemplate.content.cloneNode(true);
@@ -720,7 +751,7 @@ async function loadPaintings({ resetPage = false } = {}) {
     paintingState.page = 1;
   }
   const url = buildPaintingQuery();
-  paintingState.items = await fetchJson(url);
+  applyListPayload(paintingState, await fetchJson(url));
   renderPaintings();
 }
 
@@ -743,6 +774,8 @@ function buildMaterialQuery() {
   if (q) {
     params.set("q", q);
   }
+  params.set("page", String(materialState.page));
+  params.set("pageSize", String(materialState.pageSize));
 
   const query = params.toString();
   return query ? `/api/materials?${query}` : "/api/materials";
@@ -758,7 +791,7 @@ function fillMaterialEditForm(form, item) {
 function renderMaterials() {
   materialsRoot.innerHTML = "";
   const keyword = materialSearchInput.value.trim();
-  const total = materialState.items.length;
+  const total = materialState.total;
 
   if (!total) {
     materialsRoot.innerHTML = `<p>暂无素材，先收入一条参考素材吧。</p>`;
@@ -786,8 +819,7 @@ function renderMaterials() {
   });
   materialState.page = paginationInfo.currentPage;
 
-  const startIndex = (materialState.page - 1) * materialState.pageSize;
-  const pageItems = materialState.items.slice(startIndex, startIndex + materialState.pageSize);
+  const pageItems = materialState.items;
 
   pageItems.forEach((item) => {
     const fragment = materialTemplate.content.cloneNode(true);
@@ -980,7 +1012,7 @@ async function loadMaterials({ resetPage = false } = {}) {
     materialState.page = 1;
   }
   const url = buildMaterialQuery();
-  materialState.items = await fetchJson(url);
+  applyListPayload(materialState, await fetchJson(url));
   renderMaterials();
 }
 
@@ -1189,7 +1221,7 @@ searchInput.addEventListener("input", () => {
     } catch (error) {
       setMessage(messageEl, error.message, true);
     }
-  }, 250);
+  }, 400);
 });
 
 let materialSearchTimer;
@@ -1201,41 +1233,55 @@ materialSearchInput.addEventListener("input", () => {
     } catch (error) {
       setMessage(materialMessageEl, error.message, true);
     }
-  }, 250);
+  }, 400);
 });
 
-prevPageBtn.addEventListener("click", () => {
+prevPageBtn.addEventListener("click", async () => {
   if (paintingState.page <= 1) {
     return;
   }
   paintingState.page -= 1;
-  renderPaintings();
+  try {
+    await loadPaintings();
+  } catch (error) {
+    setMessage(messageEl, error.message, true);
+  }
 });
 
-nextPageBtn.addEventListener("click", () => {
-  const totalPages = Math.max(1, Math.ceil(paintingState.items.length / paintingState.pageSize));
-  if (paintingState.page >= totalPages) {
+nextPageBtn.addEventListener("click", async () => {
+  if (paintingState.page >= paintingState.totalPages) {
     return;
   }
   paintingState.page += 1;
-  renderPaintings();
+  try {
+    await loadPaintings();
+  } catch (error) {
+    setMessage(messageEl, error.message, true);
+  }
 });
 
-materialPrevPageBtn.addEventListener("click", () => {
+materialPrevPageBtn.addEventListener("click", async () => {
   if (materialState.page <= 1) {
     return;
   }
   materialState.page -= 1;
-  renderMaterials();
+  try {
+    await loadMaterials();
+  } catch (error) {
+    setMessage(materialMessageEl, error.message, true);
+  }
 });
 
-materialNextPageBtn.addEventListener("click", () => {
-  const totalPages = Math.max(1, Math.ceil(materialState.items.length / materialState.pageSize));
-  if (materialState.page >= totalPages) {
+materialNextPageBtn.addEventListener("click", async () => {
+  if (materialState.page >= materialState.totalPages) {
     return;
   }
   materialState.page += 1;
-  renderMaterials();
+  try {
+    await loadMaterials();
+  } catch (error) {
+    setMessage(materialMessageEl, error.message, true);
+  }
 });
 
 lightboxClose.addEventListener("click", () => {

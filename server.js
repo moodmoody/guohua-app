@@ -26,12 +26,16 @@ const IMAGE_LIMIT = 10 * 1024 * 1024;
 const MATERIAL_LIMIT = 100 * 1024 * 1024;
 const AVATAR_LIMIT = 5 * 1024 * 1024;
 const MAX_UPLOAD_FILES_PER_REQUEST = 10;
+const PUBLIC_CACHE_MS = 60 * 60 * 1000;
+const UPLOAD_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const SESSION_COOKIE = "guohua_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 120000;
 const PASSWORD_KEY_LENGTH = 32;
 const PASSWORD_DIGEST = "sha256";
 const DEFAULT_USER_USERNAME = "lulia";
+const DEFAULT_LIST_PAGE_SIZE = 6;
+const MAX_LIST_PAGE_SIZE = 24;
 let generatedLegacyPassword = "";
 let legacyPasswordLogged = false;
 
@@ -84,8 +88,8 @@ const uploadAvatar = createUploader({
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(uploadDir));
+app.use(express.static(path.join(__dirname, "public"), { maxAge: PUBLIC_CACHE_MS }));
+app.use("/uploads", express.static(uploadDir, { immutable: true, maxAge: UPLOAD_CACHE_MS }));
 
 function getMaxId(items) {
   return items.reduce((max, item) => {
@@ -583,6 +587,30 @@ function trimText(value) {
   return String(value ?? "").trim();
 }
 
+function toPositiveInteger(value, fallback) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+function paginateItems(items, query = {}) {
+  const pageSize = Math.min(
+    toPositiveInteger(query.pageSize, DEFAULT_LIST_PAGE_SIZE),
+    MAX_LIST_PAGE_SIZE
+  );
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(toPositiveInteger(query.page, 1), totalPages);
+  const start = (page - 1) * pageSize;
+
+  return {
+    items: items.slice(start, start + pageSize),
+    total,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
 function matchesKeyword(item, q) {
   const target = [
     item.title,
@@ -843,7 +871,7 @@ app.get("/api/paintings", requireUser, async (req, res, next) => {
     }
 
     result.sort((a, b) => b.id - a.id);
-    res.json(result);
+    res.json(paginateItems(result, req.query));
   } catch (error) {
     next(error);
   }
@@ -1119,7 +1147,7 @@ app.get("/api/materials", requireUser, async (req, res, next) => {
     }
 
     result.sort((a, b) => b.id - a.id);
-    res.json(result);
+    res.json(paginateItems(result, req.query));
   } catch (error) {
     next(error);
   }

@@ -64,8 +64,9 @@ test("painting and material APIs require login and isolate records by owner", as
       headers: { Cookie: firstCookie },
     });
     assert.equal(firstList.status, 200);
+    const firstListBody = await firstList.json();
     assert.deepEqual(
-      (await firstList.json()).map((item) => item.title),
+      firstListBody.items.map((item) => item.title),
       ["first-painting"]
     );
 
@@ -84,8 +85,9 @@ test("painting and material APIs require login and isolate records by owner", as
       headers: { Cookie: firstCookie },
     });
     assert.equal(firstMaterials.status, 200);
+    const firstMaterialsBody = await firstMaterials.json();
     assert.deepEqual(
-      (await firstMaterials.json()).map((item) => item.id),
+      firstMaterialsBody.items.map((item) => item.id),
       [firstMaterial.id]
     );
   } finally {
@@ -135,7 +137,7 @@ test("legacy records are assigned to the lulia default user", async () => {
       headers: { Cookie: newCookie },
     });
     assert.equal(list.status, 200);
-    assert.deepEqual(await list.json(), []);
+    assert.deepEqual((await list.json()).items, []);
 
     const loginLegacy = await fetch(`${fixture.baseUrl}/api/auth/login`, {
       method: "POST",
@@ -148,7 +150,7 @@ test("legacy records are assigned to the lulia default user", async () => {
       headers: { Cookie: legacyCookie },
     });
     assert.equal(legacyList.status, 200);
-    assert.equal((await legacyList.json()).length, 1);
+    assert.equal((await legacyList.json()).items.length, 1);
   } finally {
     await stopFixture(fixture);
   }

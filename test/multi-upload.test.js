@@ -249,8 +249,8 @@ test('POST /api/paintings with multiple images returns one object with attachmen
   const listRes = await fetch(`${baseUrl}/api/paintings`, { headers: authHeaders() });
   assert.equal(listRes.status, 200);
   const listBody = await listRes.json();
-  assert.ok(Array.isArray(listBody), 'expected list endpoint to return an array');
-  const created = listBody.find((item) => item.id === body.id);
+  assert.ok(Array.isArray(listBody.items), 'expected list endpoint to return paginated items');
+  const created = listBody.items.find((item) => item.id === body.id);
   assert.ok(created, 'expected created painting to exist in list response');
   assert.equal(Array.isArray(created.attachments), true);
   assert.equal(created.attachments.length, 2);
@@ -280,8 +280,8 @@ test('POST /api/materials with multiple assets returns one object with attachmen
   const listRes = await fetch(`${baseUrl}/api/materials`, { headers: authHeaders() });
   assert.equal(listRes.status, 200);
   const listBody = await listRes.json();
-  assert.ok(Array.isArray(listBody), 'expected list endpoint to return an array');
-  const created = listBody.find((item) => item.id === body.id);
+  assert.ok(Array.isArray(listBody.items), 'expected list endpoint to return paginated items');
+  const created = listBody.items.find((item) => item.id === body.id);
   assert.ok(created, 'expected created material to exist in list response');
   assert.equal(Array.isArray(created.attachments), true);
   assert.equal(created.attachments.length, 2);
@@ -488,7 +488,7 @@ test('legacy records with imageUrl/assetUrl are normalized to attachments', asyn
   });
   assert.equal(paintingsRes.status, 200);
   const paintings = await paintingsRes.json();
-  const legacyPainting = paintings.find((item) => item.id === 1);
+  const legacyPainting = paintings.items.find((item) => item.id === 1);
   assert.ok(legacyPainting, 'expected legacy painting record to be returned');
   assert.ok(Array.isArray(legacyPainting.attachments), 'expected painting attachments array');
   assert.equal(legacyPainting.attachments.length, 1);
@@ -500,7 +500,7 @@ test('legacy records with imageUrl/assetUrl are normalized to attachments', asyn
   });
   assert.equal(materialsRes.status, 200);
   const materials = await materialsRes.json();
-  const legacyMaterial = materials.find((item) => item.id === 1);
+  const legacyMaterial = materials.items.find((item) => item.id === 1);
   assert.ok(legacyMaterial, 'expected legacy material record to be returned');
   assert.ok(Array.isArray(legacyMaterial.attachments), 'expected material attachments array');
   assert.equal(legacyMaterial.attachments.length, 1);
