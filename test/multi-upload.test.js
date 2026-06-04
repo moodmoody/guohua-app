@@ -6,6 +6,8 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 
+const TEST_INVITE_CODE = 'studio-invite-123';
+
 async function getFreePort() {
   return await new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -75,6 +77,7 @@ function startServer(port, storage) {
       UPLOAD_DIR: storage.uploadDir,
       DATA_FILE: storage.dataFile,
       LEGACY_USER_PASSWORD: 'lulia-pass-123',
+      REGISTRATION_INVITE_CODE: TEST_INVITE_CODE,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -151,6 +154,7 @@ test.before(async () => {
     body: JSON.stringify({
       username: 'multi-upload-user',
       password: 'brush-pass-123',
+      inviteCode: TEST_INVITE_CODE,
     }),
   });
   assert.equal(registerRes.status, 201);

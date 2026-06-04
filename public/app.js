@@ -1045,6 +1045,7 @@ registerForm.addEventListener("submit", async (event) => {
         username: registerForm.elements.username.value,
         displayName: registerForm.elements.displayName.value,
         password: registerForm.elements.password.value,
+        inviteCode: registerForm.elements.inviteCode.value,
       }),
     });
     registerForm.reset();

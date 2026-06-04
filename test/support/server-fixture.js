@@ -4,6 +4,8 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 
+const TEST_INVITE_CODE = "studio-invite-123";
+
 async function getFreePort() {
   return await new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -71,6 +73,7 @@ function startServer(port, storage) {
       UPLOAD_DIR: storage.uploadDir,
       DATA_FILE: storage.dataFile,
       LEGACY_USER_PASSWORD: "lulia-pass-123",
+      REGISTRATION_INVITE_CODE: TEST_INVITE_CODE,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -126,4 +129,4 @@ async function stopFixture(fixture) {
   await fs.rm(fixture.storage.tempRoot, { recursive: true, force: true });
 }
 
-module.exports = { startFixture, stopFixture };
+module.exports = { startFixture, stopFixture, TEST_INVITE_CODE };

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { startFixture, stopFixture } = require("./support/server-fixture");
+const { startFixture, stopFixture, TEST_INVITE_CODE } = require("./support/server-fixture");
 
 function makePngBlob(seed) {
   return new Blob([new Uint8Array([137, 80, 78, 71, seed])], { type: "image/png" });
@@ -10,7 +10,7 @@ async function register(baseUrl) {
   const res = await fetch(`${baseUrl}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "pager", password: "brush-pass-123" }),
+    body: JSON.stringify({ username: "pager", password: "brush-pass-123", inviteCode: TEST_INVITE_CODE }),
   });
   assert.equal(res.status, 201);
   return res.headers.get("set-cookie").split(";")[0];

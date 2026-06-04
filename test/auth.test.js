@@ -6,6 +6,8 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 
+const INVITE_CODE = "studio-invite-123";
+
 async function getFreePort() {
   return await new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -63,7 +65,7 @@ async function createTempStorage(initialData = null) {
   return { tempRoot, uploadDir, dataFile, shimFile };
 }
 
-function startServer(port, storage) {
+function startServer(port, storage, envOverrides = {}) {
   const child = spawn(process.execPath, ["--require", storage.shimFile, "server.js"], {
     cwd: process.cwd(),
     env: {
@@ -73,6 +75,8 @@ function startServer(port, storage) {
       UPLOAD_DIR: storage.uploadDir,
       DATA_FILE: storage.dataFile,
       LEGACY_USER_PASSWORD: "lulia-pass-123",
+      REGISTRATION_INVITE_CODE: INVITE_CODE,
+      ...envOverrides,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -114,10 +118,10 @@ function startServer(port, storage) {
   };
 }
 
-async function startFixture(initialData) {
+async function startFixture(initialData, envOverrides) {
   const port = await getFreePort();
   const storage = await createTempStorage(initialData);
-  const server = startServer(port, storage);
+  const server = startServer(port, storage, envOverrides);
   await server.waitUntilReady();
   return { baseUrl: `http://127.0.0.1:${port}`, storage, server };
 }
@@ -137,10 +141,34 @@ async function register(baseUrl, username = "artist", password = "brush-pass-123
   const res = await fetch(`${baseUrl}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, displayName: "Ink Artist" }),
+    body: JSON.stringify({ username, password, displayName: "Ink Artist", inviteCode: INVITE_CODE }),
   });
   return { res, cookie: cookieFrom(res), body: await res.json() };
 }
+
+test("registration requires the configured invitation code", async () => {
+  const fixture = await startFixture();
+  try {
+    const missingInvite = await fetch(`${fixture.baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "open-door", password: "brush-pass-123" }),
+    });
+    assert.equal(missingInvite.status, 403);
+
+    const wrongInvite = await fetch(`${fixture.baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "wrong-key", password: "brush-pass-123", inviteCode: "wrong" }),
+    });
+    assert.equal(wrongInvite.status, 403);
+
+    const db = JSON.parse(await fs.readFile(fixture.storage.dataFile, "utf8"));
+    assert.equal(db.users.length, 0);
+  } finally {
+    await stopFixture(fixture);
+  }
+});
 
 test("register creates a user, stores a password hash, and sets a session cookie", async () => {
   const fixture = await startFixture();
@@ -171,7 +199,7 @@ test("duplicate registration is rejected and login/logout/me use safe profile fi
     const duplicate = await fetch(`${fixture.baseUrl}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: " artist ", password: "brush-pass-123" }),
+      body: JSON.stringify({ username: " artist ", password: "brush-pass-123", inviteCode: INVITE_CODE }),
     });
     assert.equal(duplicate.status, 400);
 

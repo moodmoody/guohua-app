@@ -587,6 +587,14 @@ function trimText(value) {
   return String(value ?? "").trim();
 }
 
+function validateInviteCode(value) {
+  const configuredInviteCode = trimText(process.env.REGISTRATION_INVITE_CODE);
+  if (!configuredInviteCode || trimText(value) !== configuredInviteCode) {
+    return "Invitation code is required";
+  }
+  return "";
+}
+
 function toPositiveInteger(value, fallback) {
   const number = Number(value);
   return Number.isInteger(number) && number > 0 ? number : fallback;
@@ -706,9 +714,13 @@ app.post("/api/auth/register", async (req, res, next) => {
     const displayName = trimText(req.body.displayName) || username;
     const password = String(req.body.password || "");
     const passwordError = validatePassword(password);
+    const inviteError = validateInviteCode(req.body.inviteCode);
 
     if (!username) {
       return res.status(400).json({ error: "Username is required" });
+    }
+    if (inviteError) {
+      return res.status(403).json({ error: inviteError });
     }
     if (passwordError) {
       return res.status(400).json({ error: passwordError });
