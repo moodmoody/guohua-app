@@ -15,17 +15,23 @@
   --danger: #9f352d;
   --shadow: 0 18px 42px rgba(45, 35, 23, 0.11);
   --soft-shadow: 0 10px 24px rgba(45, 35, 23, 0.08);
+  --font-xingshu: "STXingkai", "Xingkai SC", "HanziPen SC", "Kaiti SC",
+    "KaiTi", "华文行楷", "Microsoft YaHei", "微软雅黑", "PingFang SC",
+    "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "STXingkai", "KaiTi", "Microsoft YaHei", "微软雅黑",
-    "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-xingshu);
   background:
     linear-gradient(90deg, rgba(88, 67, 40, 0.035) 1px, transparent 1px),
     linear-gradient(0deg, rgba(88, 67, 40, 0.03) 1px, transparent 1px),
@@ -62,6 +68,11 @@ body::after {
 
 body.modal-open {
   overflow: hidden;
+}
+
+img,
+video {
+  max-width: 100%;
 }
 
 .container {
@@ -196,7 +207,7 @@ body.modal-open {
   right: 128px;
   bottom: 18px;
   color: rgba(36, 31, 26, 0.08);
-  font-family: "STXingkai", "KaiTi", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-xingshu);
   font-size: 48px;
   letter-spacing: 0;
   pointer-events: none;
@@ -236,7 +247,7 @@ body.modal-open {
   font-size: 42px;
   line-height: 1.08;
   letter-spacing: 0;
-  font-family: "STXingkai", "KaiTi", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-xingshu);
   font-weight: 500;
 }
 
@@ -299,6 +310,16 @@ body.modal-open {
   object-fit: cover;
 }
 
+.user-avatar.previewable {
+  cursor: zoom-in;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.user-avatar.previewable:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 3px rgba(49, 95, 69, 0.16);
+}
+
 .user-avatar.empty::before {
   content: "";
 }
@@ -306,6 +327,10 @@ body.modal-open {
 .user-summary strong,
 .user-summary span {
   display: block;
+}
+
+.user-summary > div {
+  min-width: 0;
 }
 
 .user-summary span {
@@ -452,6 +477,13 @@ button {
   border: 1px solid var(--line);
   padding: 10px 12px;
   font: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  min-height: 42px;
 }
 
 input,
@@ -1030,8 +1062,25 @@ mark.hl {
 }
 
 @media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  button:hover,
+  .card:hover,
+  .media-shell:hover .media-thumb {
+    transform: none;
+    box-shadow: none;
+    filter: none;
+  }
+
+  .auth-screen {
+    align-items: start;
+    padding: 12px;
+  }
+
   .auth-panel {
-    padding: 20px 14px 16px;
+    padding: 18px 12px 14px;
   }
 
   .auth-panel > .title-row {
@@ -1047,8 +1096,13 @@ mark.hl {
     margin-top: 8px;
   }
 
+  .auth-form {
+    padding: 14px;
+  }
+
   .header {
     padding: 14px 12px;
+    overflow: visible;
   }
 
   .title-row {
@@ -1061,14 +1115,14 @@ mark.hl {
   }
 
   .header-copy {
-    min-height: 124px;
-    padding-top: 30px;
+    min-height: 112px;
+    padding-top: 18px;
     align-items: center;
     text-align: center;
   }
 
   .container {
-    padding: 18px 12px 30px;
+    padding: 12px 10px 28px;
   }
 
   .header {
@@ -1076,11 +1130,29 @@ mark.hl {
   }
 
   .tabs {
-    flex-direction: column;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    gap: 8px;
+    margin: 12px -10px 0;
+    padding: 9px 10px 10px;
+    overflow-x: auto;
+    background: rgba(244, 234, 216, 0.92);
+    border-block: 1px solid rgba(191, 164, 124, 0.42);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .tab-btn {
-    width: 100%;
+    flex: 0 0 auto;
+    min-width: 104px;
+    width: auto;
+    padding: 10px 16px;
+    white-space: nowrap;
   }
 
   .title-row {
@@ -1098,12 +1170,13 @@ mark.hl {
   }
 
   .header p {
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.55;
   }
 
   .header-copy {
-    min-height: 124px;
-    padding-top: 30px;
+    min-height: 112px;
+    padding-top: 18px;
     align-items: center;
     text-align: center;
     padding-right: 0;
@@ -1115,15 +1188,28 @@ mark.hl {
     max-width: none;
     flex-wrap: nowrap;
     margin-top: 10px;
+    padding: 8px;
   }
 
   .user-summary button {
+    flex: 0 0 auto;
     width: auto;
     margin-left: auto;
+    min-height: 38px;
+  }
+
+  .user-bio {
+    max-width: none;
   }
 
   .panel {
-    padding: 16px 14px;
+    padding: 16px 12px;
+    margin-top: 12px;
+  }
+
+  .panel::before {
+    top: 14px;
+    bottom: 14px;
   }
 
   .grid,
@@ -1136,6 +1222,7 @@ mark.hl {
   .edit-actions,
   .comment-form {
     flex-direction: column;
+    gap: 8px;
   }
 
   .toolbar-actions button,
@@ -1145,8 +1232,47 @@ mark.hl {
     width: 100%;
   }
 
+  .cards {
+    gap: 13px;
+  }
+
+  .card-content {
+    padding: 13px;
+  }
+
+  .painting-title,
+  .material-title {
+    font-size: 19px;
+  }
+
+  .attachment-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 9px 10px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .attachment-item {
+    flex: 0 0 auto;
+  }
+
+  .attachment-chip,
+  .attachment-remove {
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  .selected-file-item {
+    align-items: flex-start;
+  }
+
+  .selected-file-remove {
+    min-height: 34px;
+  }
+
   .media-thumb {
-    height: 220px;
+    height: clamp(190px, 58vw, 230px);
   }
 
   .pagination {
@@ -1166,11 +1292,76 @@ mark.hl {
     padding: 12px;
   }
 
+  .lightbox-content {
+    width: 100%;
+    max-height: 88vh;
+  }
+
   .lightbox-image {
     max-height: 70vh;
   }
 
   .lightbox-video {
+    width: 100%;
     max-height: 68vh;
+  }
+
+  .lightbox-close {
+    right: 12px;
+    top: 12px;
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+}
+
+@media (max-width: 430px) {
+  .auth-panel > .title-row h1,
+  .header h1 {
+    font-size: 30px;
+  }
+
+  .header-copy {
+    min-height: 96px;
+    padding-top: 10px;
+  }
+
+  .header p {
+    font-size: 13px;
+  }
+
+  .user-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .user-summary {
+    gap: 7px;
+  }
+
+  .user-summary button {
+    padding-inline: 9px;
+  }
+
+  h2 {
+    font-size: 21px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    padding: 10px;
+  }
+
+  .media-thumb {
+    height: clamp(174px, 62vw, 210px);
+  }
+
+  .lightbox {
+    padding: 8px;
+  }
+
+  .lightbox-close {
+    min-height: 44px;
   }
 }

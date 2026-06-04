@@ -83,11 +83,16 @@ function renderCurrentUser(user) {
   currentUserBio.textContent = (user?.bio || "").trim() || "未填写简介";
   if (user?.avatarUrl) {
     currentUserAvatar.src = user.avatarUrl;
+    currentUserAvatar.title = "点击预览头像";
+    currentUserAvatar.setAttribute("aria-label", `${displayName || "用户"}头像，点击预览`);
   } else {
     currentUserAvatar.removeAttribute("src");
+    currentUserAvatar.removeAttribute("title");
+    currentUserAvatar.removeAttribute("aria-label");
   }
   currentUserAvatar.alt = displayName ? `${displayName}头像` : "";
   currentUserAvatar.classList.toggle("empty", !user?.avatarUrl);
+  currentUserAvatar.classList.toggle("previewable", Boolean(user?.avatarUrl));
   profileForm.elements.displayName.value = displayName;
   profileForm.elements.bio.value = user?.bio || "";
 }
@@ -1235,6 +1240,19 @@ materialNextPageBtn.addEventListener("click", () => {
 
 lightboxClose.addEventListener("click", () => {
   closeLightbox();
+});
+
+currentUserAvatar.addEventListener("click", () => {
+  if (!currentUser?.avatarUrl) {
+    return;
+  }
+  const displayName = currentUser?.displayName || currentUser?.username || "用户";
+  openLightbox({
+    type: "image",
+    url: currentUser.avatarUrl,
+    title: `${displayName}头像`,
+    category: "个人资料",
+  });
 });
 
 lightbox.addEventListener("click", (event) => {
