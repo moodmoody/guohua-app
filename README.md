@@ -19,6 +19,10 @@ npm start
 
 启动后访问：`http://localhost:3000`
 
+## 使用说明
+
+日常使用方法见 [USER_MANUAL.md](./USER_MANUAL.md)。
+
 ## 目录说明
 
 - `server.js`：后端入口
