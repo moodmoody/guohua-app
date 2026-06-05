@@ -744,9 +744,7 @@ app.post("/api/auth/register", async (req, res, next) => {
     };
     db.userLastId = user.id;
     db.users.push(user);
-    const session = createSession(db, user.id);
     await writeDb(db);
-    setSessionCookie(res, session.id);
     res.status(201).json({ user: sanitizeUser(user) });
   } catch (error) {
     next(error);

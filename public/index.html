@@ -15,41 +15,65 @@
           <span class="ink-mark" aria-hidden="true"></span>
         </div>
         <p>登录后整理自己的丹青作品、素材、题跋与资料。</p>
-        <div class="auth-grid">
-          <form id="login-form" class="auth-form">
-            <h2>登录</h2>
-            <label>
-              用户名
-              <input name="username" type="text" autocomplete="username" required />
-            </label>
-            <label>
-              密码
-              <input name="password" type="password" autocomplete="current-password" required />
-            </label>
-            <button type="submit">入册</button>
-          </form>
-          <form id="register-form" class="auth-form">
-            <h2>注册</h2>
-            <label>
-              用户名
-              <input name="username" type="text" autocomplete="username" required />
-            </label>
-            <label>
-              显示名称
-              <input name="displayName" type="text" placeholder="如：石涛后学" />
-            </label>
-            <label>
-              密码
-              <input name="password" type="password" autocomplete="new-password" minlength="8" required />
-            </label>
-            <label>
-              邀请码
-              <input name="inviteCode" type="password" autocomplete="one-time-code" required />
-            </label>
-            <button type="submit">新建案卷</button>
-          </form>
+        <div class="auth-stage">
+          <aside class="auth-aside">
+            <div class="auth-note">
+              <strong>案卷私藏</strong>
+              <span>以登录为主入口，注册仅对持邀请码的使用者开放。</span>
+            </div>
+            <div class="auth-brief">
+              <h2>一卷收齐</h2>
+              <ul class="auth-points">
+                <li>作品、素材与题跋分开归档</li>
+                <li>手机上也能快速检索与翻看</li>
+                <li>个人案卷独立保存，不公开混排</li>
+              </ul>
+            </div>
+          </aside>
+          <div class="auth-stage-main">
+            <form id="login-form" class="auth-form auth-form-login">
+              <div class="auth-form-head">
+                <h2>登录案卷</h2>
+                <span>继续进入你的墨稿与素材册</span>
+              </div>
+              <label>
+                用户名
+                <input name="username" type="text" autocomplete="username" required />
+              </label>
+              <label>
+                密码
+                <input name="password" type="password" autocomplete="current-password" required />
+              </label>
+              <button type="submit">进入案卷</button>
+              <button id="show-register-btn" type="button" class="text-action">创建案卷账号</button>
+            </form>
+            <form id="register-form" class="auth-form auth-form-register hidden">
+              <div class="auth-form-head">
+                <h2>注册案卷</h2>
+                <span>完成建档后回到登录入口</span>
+              </div>
+              <label>
+                用户名
+                <input name="username" type="text" autocomplete="username" required />
+              </label>
+              <label>
+                显示名称
+                <input name="displayName" type="text" placeholder="如：石涛后学" />
+              </label>
+              <label>
+                密码
+                <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+              <label>
+                邀请码
+                <input name="inviteCode" type="password" autocomplete="one-time-code" required />
+              </label>
+              <button type="submit">完成注册</button>
+              <button id="show-login-btn" type="button" class="text-action">返回登录</button>
+            </form>
+            <div id="auth-message" class="message"></div>
+          </div>
         </div>
-        <div id="auth-message" class="message"></div>
       </div>
     </section>
 

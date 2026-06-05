@@ -5,6 +5,8 @@ const authScreen = document.getElementById("auth-screen");
 const appShell = document.getElementById("app-shell");
 const loginForm = document.getElementById("login-form");
 const registerForm = document.getElementById("register-form");
+const showRegisterBtn = document.getElementById("show-register-btn");
+const showLoginBtn = document.getElementById("show-login-btn");
 const authMessage = document.getElementById("auth-message");
 const logoutBtn = document.getElementById("logout-btn");
 const currentUserAvatar = document.getElementById("current-user-avatar");
@@ -79,6 +81,18 @@ function setMessage(target, text, isError = false) {
   target.style.color = isError ? "#8b1d1d" : "#7a6f63";
 }
 
+function showLoginView(message = "", isError = false) {
+  loginForm.classList.remove("hidden");
+  registerForm.classList.add("hidden");
+  setMessage(authMessage, message, isError);
+}
+
+function showRegisterView() {
+  loginForm.classList.add("hidden");
+  registerForm.classList.remove("hidden");
+  setMessage(authMessage, "");
+}
+
 function renderCurrentUser(user) {
   currentUser = user;
   const displayName = user?.displayName || user?.username || "";
@@ -114,6 +128,7 @@ function showAuth() {
   currentUser = null;
   authScreen.classList.remove("hidden");
   appShell.classList.add("hidden");
+  showLoginView();
   paintingState.items = [];
   paintingState.total = 0;
   paintingState.page = 1;
@@ -1038,6 +1053,7 @@ loginForm.addEventListener("submit", async (event) => {
 registerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    const username = registerForm.elements.username.value.trim();
     const payload = await fetchJson("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1049,11 +1065,20 @@ registerForm.addEventListener("submit", async (event) => {
       }),
     });
     registerForm.reset();
-    setMessage(authMessage, "");
-    await showApp(payload.user);
+    loginForm.elements.username.value = username || payload.user.username || "";
+    loginForm.elements.password.value = "";
+    showLoginView("注册成功，请登录");
   } catch (error) {
     setMessage(authMessage, error.message, true);
   }
+});
+
+showRegisterBtn.addEventListener("click", () => {
+  showRegisterView();
+});
+
+showLoginBtn.addEventListener("click", () => {
+  showLoginView();
 });
 
 logoutBtn.addEventListener("click", async () => {

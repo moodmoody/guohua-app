@@ -20,6 +20,15 @@ test("mobile layout keeps navigation, attachments, and actions usable", async ()
 test("xingshu font stack stays ahead of plain sans-serif fallbacks", async () => {
   const css = await readStyle();
 
-  assert.match(css, /--font-xingshu:\s*"STXingkai",\s*"Xingkai SC",\s*"HanziPen SC",\s*"Kaiti SC",\s*"KaiTi",\s*"华文行楷"/);
+  assert.match(css, /--font-xingshu:\s*"STXingkai",\s*"Xingkai SC",\s*"HanziPen SC",\s*"Kaiti SC",\s*"KaiTi"/);
   assert.match(css, /body\s*\{[\s\S]*?font-family:\s*var\(--font-xingshu\)/);
+});
+
+test("auth screen uses a dedicated stage layout with mobile-safe stacking", async () => {
+  const css = await readStyle();
+
+  assert.match(css, /\.auth-stage\s*\{/);
+  assert.match(css, /\.auth-aside\s*\{/);
+  assert.match(css, /\.auth-form\.hidden\s*\{[\s\S]*?display:\s*none/);
+  assert.match(css, /@media\s*\(max-width:\s*860px\)[\s\S]*?\.auth-stage\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
 });

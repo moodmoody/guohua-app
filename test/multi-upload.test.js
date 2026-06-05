@@ -158,7 +158,17 @@ test.before(async () => {
     }),
   });
   assert.equal(registerRes.status, 201);
-  authCookie = registerRes.headers.get('set-cookie').split(';')[0];
+
+  const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: 'multi-upload-user',
+      password: 'brush-pass-123',
+    }),
+  });
+  assert.equal(loginRes.status, 200);
+  authCookie = loginRes.headers.get('set-cookie').split(';')[0];
 });
 
 test.after(async () => {

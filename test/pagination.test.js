@@ -7,13 +7,20 @@ function makePngBlob(seed) {
 }
 
 async function register(baseUrl) {
-  const res = await fetch(`${baseUrl}/api/auth/register`, {
+  const registerRes = await fetch(`${baseUrl}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username: "pager", password: "brush-pass-123", inviteCode: TEST_INVITE_CODE }),
   });
-  assert.equal(res.status, 201);
-  return res.headers.get("set-cookie").split(";")[0];
+  assert.equal(registerRes.status, 201);
+
+  const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "pager", password: "brush-pass-123" }),
+  });
+  assert.equal(loginRes.status, 200);
+  return loginRes.headers.get("set-cookie").split(";")[0];
 }
 
 async function createPainting(baseUrl, cookie, index) {

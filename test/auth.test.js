@@ -143,7 +143,7 @@ async function register(baseUrl, username = "artist", password = "brush-pass-123
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, displayName: "Ink Artist", inviteCode: INVITE_CODE }),
   });
-  return { res, cookie: cookieFrom(res), body: await res.json() };
+  return { res, cookie: res.headers.get("set-cookie"), body: await res.json() };
 }
 
 test("registration requires the configured invitation code", async () => {
@@ -170,12 +170,12 @@ test("registration requires the configured invitation code", async () => {
   }
 });
 
-test("register creates a user, stores a password hash, and sets a session cookie", async () => {
+test("register creates a user, stores a password hash, and requires login afterward", async () => {
   const fixture = await startFixture();
   try {
     const { res, cookie, body } = await register(fixture.baseUrl);
     assert.equal(res.status, 201);
-    assert.match(cookie, /^guohua_session=/);
+    assert.equal(cookie, null);
     assert.equal(body.user.username, "artist");
     assert.equal(body.user.displayName, "Ink Artist");
     assert.equal(body.user.passwordHash, undefined);
@@ -184,7 +184,10 @@ test("register creates a user, stores a password hash, and sets a session cookie
     assert.equal(db.users.length, 1);
     assert.notEqual(db.users[0].passwordHash, "brush-pass-123");
     assert.ok(String(db.users[0].passwordHash).startsWith("pbkdf2$"));
-    assert.equal(db.sessions.length, 1);
+    assert.equal(db.sessions.length, 0);
+
+    const me = await fetch(`${fixture.baseUrl}/api/auth/me`);
+    assert.equal(me.status, 401);
   } finally {
     await stopFixture(fixture);
   }
@@ -244,7 +247,14 @@ test("duplicate registration is rejected and login/logout/me use safe profile fi
 test("profile, avatar, and password endpoints update only the current user", async () => {
   const fixture = await startFixture();
   try {
-    const { cookie } = await register(fixture.baseUrl, "profiled", "old-pass-123");
+    await register(fixture.baseUrl, "profiled", "old-pass-123");
+    const login = await fetch(`${fixture.baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "profiled", password: "old-pass-123" }),
+    });
+    assert.equal(login.status, 200);
+    const cookie = cookieFrom(login);
 
     const profile = await fetch(`${fixture.baseUrl}/api/profile`, {
       method: "PATCH",
@@ -281,12 +291,12 @@ test("profile, avatar, and password endpoints update only the current user", asy
     });
     assert.equal(password.status, 200);
 
-    const login = await fetch(`${fixture.baseUrl}/api/auth/login`, {
+    const relogin = await fetch(`${fixture.baseUrl}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "profiled", password: "new-pass-123" }),
     });
-    assert.equal(login.status, 200);
+    assert.equal(relogin.status, 200);
   } finally {
     await stopFixture(fixture);
   }
