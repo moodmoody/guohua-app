@@ -1,0 +1,19 @@
+{
+  "name": "墨舞丹青",
+  "short_name": "墨舞丹青",
+  "description": "整理国画作品、素材、题跋与案卷的移动应用。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4ead8",
+  "theme_color": "#315f45",
+  "icons": [
+    {
+      "src": "/assets/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

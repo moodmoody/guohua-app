@@ -3,8 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#315f45" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="墨舞丹青" />
     <title>墨舞丹青 · 画事案卷</title>
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/assets/app-icon.png" />
+    <link rel="stylesheet" href="/style.css?v=20260607-card-gap" />
   </head>
   <body>
     <section id="auth-screen" class="auth-screen">
@@ -143,6 +148,10 @@
                   required
                 />
               </label>
+              <label>
+                标签
+                <input name="tags" type="text" placeholder="如：写意 临摹 待装裱" />
+              </label>
             </div>
             <label>
               题跋简介
@@ -178,6 +187,7 @@
             <button id="search-btn" type="button">检索案卷</button>
             <button id="reset-btn" type="button" class="ghost">清空条件</button>
           </div>
+          <div id="painting-tag-strip" class="tag-strip" aria-label="作品标签筛选"></div>
           <div id="message" class="message"></div>
           <div id="paintings" class="cards"></div>
           <div id="pagination" class="pagination hidden">
@@ -205,6 +215,10 @@
                   placeholder="如：纹理 / 构图 / 临摹 / 视频教程"
                   required
                 />
+              </label>
+              <label>
+                标签
+                <input name="tags" type="text" placeholder="如：皴法 纹理 课程" />
               </label>
             </div>
             <label>
@@ -247,6 +261,7 @@
             <button id="material-search-btn" type="button">检索素材</button>
             <button id="material-reset-btn" type="button" class="ghost">清空条件</button>
           </div>
+          <div id="material-tag-strip" class="tag-strip" aria-label="素材标签筛选"></div>
           <div id="material-message" class="message"></div>
           <div id="materials" class="cards"></div>
           <div id="material-pagination" class="pagination hidden">
@@ -299,8 +314,11 @@
     <template id="painting-template">
       <article class="card">
         <div class="painting-media media-shell">
+          <button type="button" class="attachment-nav attachment-prev" aria-label="上一张附件">‹</button>
           <img class="painting-preview-image media-thumb hidden" alt="" />
           <video class="painting-preview-video media-thumb hidden" preload="metadata" muted playsinline></video>
+          <button type="button" class="attachment-nav attachment-next" aria-label="下一张附件">›</button>
+          <span class="attachment-status painting-status"></span>
           <span class="image-tip painting-tip">单击预览</span>
         </div>
         <div class="attachment-strip painting-attachments"></div>
@@ -308,11 +326,13 @@
           <h3 class="painting-title"></h3>
           <p class="meta"></p>
           <p class="description"></p>
+          <div class="tag-list painting-tags"></div>
 
-          <div class="card-actions">
-            <button type="button" class="edit-btn">修改</button>
-            <button type="button" class="delete-btn danger">删除</button>
-          </div>
+              <div class="card-actions">
+                <button type="button" class="share-btn">分享</button>
+                <button type="button" class="edit-btn">修改</button>
+                <button type="button" class="delete-btn danger">删除</button>
+              </div>
 
           <form class="edit-form hidden">
             <div class="grid">
@@ -328,6 +348,10 @@
             <label>
               题跋简介
               <textarea name="description" rows="3"></textarea>
+            </label>
+            <label>
+              标签
+              <input name="tags" type="text" placeholder="如：写意 临摹 待装裱" />
             </label>
             <label>
               替换图片（可选）
@@ -370,8 +394,11 @@
     <template id="material-template">
       <article class="card">
         <div class="material-media media-shell">
+          <button type="button" class="attachment-nav attachment-prev" aria-label="上一张附件">‹</button>
           <img class="material-preview-image media-thumb hidden" alt="" />
           <video class="material-preview-video media-thumb hidden" preload="metadata" muted playsinline></video>
+          <button type="button" class="attachment-nav attachment-next" aria-label="下一张附件">›</button>
+          <span class="attachment-status material-status"></span>
           <span class="image-tip material-tip">单击预览</span>
         </div>
         <div class="attachment-strip material-attachments"></div>
@@ -379,6 +406,7 @@
           <h3 class="material-title"></h3>
           <p class="meta material-meta"></p>
           <p class="description material-description"></p>
+          <div class="tag-list material-tags"></div>
 
           <div class="card-actions">
             <button type="button" class="material-edit-btn">修改</button>
@@ -399,6 +427,10 @@
             <label>
               说明
               <textarea name="description" rows="3"></textarea>
+            </label>
+            <label>
+              标签
+              <input name="tags" type="text" placeholder="如：皴法 纹理 课程" />
             </label>
             <label>
               替换文件（可选，图片或视频，素材最大 100MB）
@@ -437,7 +469,10 @@
       <button id="lightbox-close" class="lightbox-close" type="button" aria-label="关闭预览">
         关闭
       </button>
-      <div class="lightbox-content">
+      <div id="lightbox-content" class="lightbox-content">
+        <button id="lightbox-prev" class="lightbox-nav lightbox-prev hidden" type="button" aria-label="上一张附件">
+          ‹
+        </button>
         <img id="lightbox-image" class="lightbox-image hidden" alt="" />
         <video
           id="lightbox-video"
@@ -446,11 +481,39 @@
           preload="metadata"
           playsinline
         ></video>
+        <button id="lightbox-next" class="lightbox-nav lightbox-next hidden" type="button" aria-label="下一张附件">
+          ›
+        </button>
+        <span id="lightbox-status" class="lightbox-status hidden"></span>
         <p id="lightbox-caption" class="lightbox-caption"></p>
       </div>
     </div>
 
+    <div id="share-sheet" class="share-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="share-sheet-title">
+      <div class="share-sheet-panel">
+        <button id="share-sheet-close" class="share-sheet-close" type="button" aria-label="关闭分享面板">关闭</button>
+        <span class="eyebrow">微信朋友圈分享</span>
+        <h2 id="share-sheet-title">分享作品</h2>
+        <p id="share-sheet-work" class="share-sheet-work"></p>
+        <label>
+          分享链接
+          <input id="share-link-input" type="text" readonly />
+        </label>
+        <div class="share-sheet-actions">
+          <a id="share-open-link" class="button-link" href="#" target="_blank" rel="noopener">打开分享页</a>
+          <button id="share-copy-btn" type="button">复制链接</button>
+        </div>
+        <div class="share-poster-tools">
+          <button id="share-poster-btn" type="button">生成分享图片</button>
+          <button id="share-system-btn" type="button" disabled>分享图片</button>
+          <a id="share-download-link" class="button-link share-download-link hidden" href="#" download="墨舞丹青分享图.png">下载图片</a>
+        </div>
+        <img id="share-poster-preview" class="share-poster-preview hidden" alt="分享图片预览" />
+        <p class="share-sheet-tip">生成图片后，可长按保存到相册，或点“分享图片”发送到微信，再选择分享到朋友圈。</p>
+      </div>
+    </div>
+
     <script src="/file-selection.js"></script>
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260607-tags"></script>
   </body>
 </html>

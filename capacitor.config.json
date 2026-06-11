@@ -1,0 +1,13 @@
+{
+  "appId": "com.guohua.app",
+  "appName": "墨舞丹青",
+  "webDir": "public",
+  "server": {
+    "url": "http://124.220.36.240",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  }
+}

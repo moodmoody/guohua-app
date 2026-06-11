@@ -32,3 +32,12 @@ test("auth screen uses a dedicated stage layout with mobile-safe stacking", asyn
   assert.match(css, /\.auth-form\.hidden\s*\{[\s\S]*?display:\s*none/);
   assert.match(css, /@media\s*\(max-width:\s*860px\)[\s\S]*?\.auth-stage\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
 });
+
+test("mobile cards keep clear visual separation between works", async () => {
+  const css = await readStyle();
+
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.cards\s*\{[\s\S]*?gap:\s*20px/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.card\s*\{[\s\S]*?border-color:\s*rgba\(123,\s*78,\s*42,\s*0\.34\)/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.card\s*\{[\s\S]*?box-shadow:\s*0\s*12px\s*26px/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.card\s*\+\s*\.card\s*\{[\s\S]*?margin-top:\s*6px/);
+});

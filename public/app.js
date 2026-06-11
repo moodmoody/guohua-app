@@ -22,6 +22,7 @@ const resetBtn = document.getElementById("reset-btn");
 const paintingsRoot = document.getElementById("paintings");
 const messageEl = document.getElementById("message");
 const paintingTemplate = document.getElementById("painting-template");
+const paintingTagStrip = document.getElementById("painting-tag-strip");
 const pagination = document.getElementById("pagination");
 const prevPageBtn = document.getElementById("prev-page-btn");
 const nextPageBtn = document.getElementById("next-page-btn");
@@ -35,16 +36,31 @@ const materialResetBtn = document.getElementById("material-reset-btn");
 const materialsRoot = document.getElementById("materials");
 const materialMessageEl = document.getElementById("material-message");
 const materialTemplate = document.getElementById("material-template");
+const materialTagStrip = document.getElementById("material-tag-strip");
 const materialPagination = document.getElementById("material-pagination");
 const materialPrevPageBtn = document.getElementById("material-prev-page-btn");
 const materialNextPageBtn = document.getElementById("material-next-page-btn");
 const materialPageInfo = document.getElementById("material-page-info");
 
 const lightbox = document.getElementById("lightbox");
+const lightboxContent = document.getElementById("lightbox-content");
 const lightboxImage = document.getElementById("lightbox-image");
 const lightboxVideo = document.getElementById("lightbox-video");
 const lightboxCaption = document.getElementById("lightbox-caption");
 const lightboxClose = document.getElementById("lightbox-close");
+const lightboxPrev = document.getElementById("lightbox-prev");
+const lightboxNext = document.getElementById("lightbox-next");
+const lightboxStatus = document.getElementById("lightbox-status");
+const shareSheet = document.getElementById("share-sheet");
+const shareSheetClose = document.getElementById("share-sheet-close");
+const shareSheetWork = document.getElementById("share-sheet-work");
+const shareLinkInput = document.getElementById("share-link-input");
+const shareOpenLink = document.getElementById("share-open-link");
+const shareCopyBtn = document.getElementById("share-copy-btn");
+const sharePosterBtn = document.getElementById("share-poster-btn");
+const shareSystemBtn = document.getElementById("share-system-btn");
+const shareDownloadLink = document.getElementById("share-download-link");
+const sharePosterPreview = document.getElementById("share-poster-preview");
 const { removeFileAt } = window.FileSelection;
 
 const profileForm = document.getElementById("profile-form");
@@ -52,6 +68,21 @@ const avatarForm = document.getElementById("avatar-form");
 const passwordForm = document.getElementById("password-form");
 const profileMessage = document.getElementById("profile-message");
 let currentUser = null;
+let lightboxState = {
+  attachments: [],
+  index: 0,
+  title: "",
+  category: "",
+};
+let shareState = {
+  title: "",
+  category: "",
+  description: "",
+  shareUrl: "",
+  posterImageUrl: "",
+  posterBlob: null,
+  posterObjectUrl: "",
+};
 
 const paintingState = {
   items: [],
@@ -59,6 +90,8 @@ const paintingState = {
   pageSize: 6,
   total: 0,
   totalPages: 1,
+  tags: [],
+  selectedTag: "",
 };
 
 const materialState = {
@@ -67,6 +100,8 @@ const materialState = {
   pageSize: 6,
   total: 0,
   totalPages: 1,
+  tags: [],
+  selectedTag: "",
 };
 
 function formatTime(iso) {
@@ -118,8 +153,10 @@ function renderCurrentUser(user) {
 async function loadAppData() {
   await Promise.all([
     loadPaintingCategories(),
+    loadPaintingTags(),
     loadPaintings({ resetPage: true }),
     loadMaterialCategories(),
+    loadMaterialTags(),
     loadMaterials({ resetPage: true }),
   ]);
 }
@@ -133,12 +170,18 @@ function showAuth() {
   paintingState.total = 0;
   paintingState.page = 1;
   paintingState.totalPages = 1;
+  paintingState.tags = [];
+  paintingState.selectedTag = "";
   materialState.items = [];
   materialState.total = 0;
   materialState.page = 1;
   materialState.totalPages = 1;
+  materialState.tags = [];
+  materialState.selectedTag = "";
   paintingsRoot.innerHTML = "";
   materialsRoot.innerHTML = "";
+  renderPaintingTagStrip();
+  renderMaterialTagStrip();
 }
 
 async function showApp(user) {
@@ -227,24 +270,59 @@ function activateTab(tabName) {
   });
 }
 
-function openLightbox({ type, url, title, category }) {
+function renderLightboxMedia() {
+  const current = lightboxState.attachments[lightboxState.index] || null;
+  const hasMultiple = lightboxState.attachments.length > 1;
+
   lightboxImage.classList.add("hidden");
   lightboxVideo.classList.add("hidden");
   lightboxImage.src = "";
   lightboxImage.alt = "";
   lightboxVideo.src = "";
   lightboxVideo.pause();
+  lightboxPrev.classList.toggle("hidden", !hasMultiple);
+  lightboxNext.classList.toggle("hidden", !hasMultiple);
+  lightboxStatus.classList.toggle("hidden", !hasMultiple);
 
-  if (type === "video") {
-    lightboxVideo.src = url;
+  if (!current) {
+    lightboxCaption.textContent = "";
+    lightboxStatus.textContent = "";
+    return;
+  }
+
+  if (current.type === "video") {
+    lightboxVideo.src = current.url;
     lightboxVideo.classList.remove("hidden");
   } else {
-    lightboxImage.src = url;
-    lightboxImage.alt = title || "预览图";
+    lightboxImage.src = current.url;
+    lightboxImage.alt = lightboxState.title || "预览图";
     lightboxImage.classList.remove("hidden");
   }
 
-  lightboxCaption.textContent = category ? `${title} · ${category}` : title || "";
+  const counter = hasMultiple ? `${lightboxState.index + 1} / ${lightboxState.attachments.length}` : "";
+  lightboxStatus.textContent = counter;
+  lightboxCaption.textContent = [lightboxState.title, lightboxState.category, counter].filter(Boolean).join(" · ");
+}
+
+function showLightboxAttachment(delta) {
+  if (lightbox.classList.contains("hidden") || lightboxState.attachments.length <= 1) {
+    return;
+  }
+  lightboxState.index = moveAttachmentIndex(lightboxState.index, lightboxState.attachments.length, delta);
+  renderLightboxMedia();
+}
+
+function openLightbox({ type, url, title, category, attachments, index = 0 }) {
+  const groupedAttachments = Array.isArray(attachments) && attachments.length
+    ? attachments
+    : [{ type, url }].filter((attachment) => attachment.url);
+  lightboxState = {
+    attachments: groupedAttachments,
+    index: Math.min(Math.max(index, 0), Math.max(groupedAttachments.length - 1, 0)),
+    title: title || "",
+    category: category || "",
+  };
+  renderLightboxMedia();
   lightbox.classList.remove("hidden");
   document.body.classList.add("modal-open");
 }
@@ -256,7 +334,193 @@ function closeLightbox() {
   lightboxVideo.pause();
   lightboxVideo.src = "";
   lightboxCaption.textContent = "";
+  lightboxStatus.textContent = "";
+  lightboxState = {
+    attachments: [],
+    index: 0,
+    title: "",
+    category: "",
+  };
   document.body.classList.remove("modal-open");
+}
+
+async function copyShareUrl(shareUrl) {
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    return true;
+  } catch (_error) {
+    window.prompt("复制分享链接", shareUrl);
+    return false;
+  }
+}
+
+function loadPosterImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("分享图片生成失败，请换一张作品图再试"));
+    image.src = src;
+  });
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 2) {
+  const chars = Array.from(text || "");
+  let line = "";
+  let lineCount = 0;
+  chars.forEach((char) => {
+    const nextLine = `${line}${char}`;
+    if (ctx.measureText(nextLine).width > maxWidth && line) {
+      if (lineCount < maxLines) {
+        ctx.fillText(line, x, y + lineCount * lineHeight);
+      }
+      line = char;
+      lineCount += 1;
+      return;
+    }
+    line = nextLine;
+  });
+  if (line && lineCount < maxLines) {
+    ctx.fillText(line, x, y + lineCount * lineHeight);
+  }
+}
+
+function drawImageContain(ctx, image, x, y, width, height) {
+  const ratio = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * ratio;
+  const drawHeight = image.naturalHeight * ratio;
+  const drawX = x + (width - drawWidth) / 2;
+  const drawY = y + (height - drawHeight) / 2;
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+function drawSharePoster({ image, title, category, description }) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1440;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#f4ead8";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "rgba(170, 61, 45, 0.08)";
+  ctx.fillRect(58, 58, canvas.width - 116, canvas.height - 116);
+  ctx.fillStyle = "#2c241c";
+  ctx.fillRect(112, 140, 856, 872);
+  ctx.fillStyle = "#fff8ec";
+  ctx.fillRect(142, 170, 796, 812);
+  ctx.fillStyle = "#19140f";
+  ctx.fillRect(176, 204, 728, 744);
+  drawImageContain(ctx, image, 176, 204, 728, 744);
+
+  ctx.fillStyle = "#241f1a";
+  ctx.textAlign = "center";
+  ctx.font = '72px "STXingkai", "KaiTi", serif';
+  drawWrappedText(ctx, title || "墨舞丹青", 540, 1110, 820, 82, 2);
+  ctx.fillStyle = "#685b4b";
+  ctx.font = '34px "STXingkai", "KaiTi", serif';
+  ctx.fillText(category || "国画作品", 540, 1268);
+  ctx.font = '26px "KaiTi", serif';
+  drawWrappedText(ctx, description || "一幅收于墨舞丹青的作品", 540, 1322, 760, 34, 2);
+  ctx.fillStyle = "#aa3d2d";
+  ctx.font = '30px "STXingkai", "KaiTi", serif';
+  ctx.fillText("墨舞丹青", 540, 1384);
+
+  return canvas;
+}
+
+async function generateSharePoster() {
+  if (!shareState.posterImageUrl) {
+    throw new Error("这幅作品暂时没有可生成分享图的图片");
+  }
+  const image = await loadPosterImage(shareState.posterImageUrl);
+  const canvas = drawSharePoster({
+    image,
+    title: shareState.title,
+    category: shareState.category,
+    description: shareState.description,
+  });
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob((result) => {
+      if (result) {
+        resolve(result);
+      } else {
+        reject(new Error("分享图片生成失败"));
+      }
+    }, "image/png", 0.95);
+  });
+  if (shareState.posterObjectUrl) {
+    URL.revokeObjectURL(shareState.posterObjectUrl);
+  }
+  shareState.posterBlob = blob;
+  shareState.posterObjectUrl = URL.createObjectURL(blob);
+  sharePosterPreview.src = shareState.posterObjectUrl;
+  sharePosterPreview.classList.remove("hidden");
+  shareDownloadLink.href = shareState.posterObjectUrl;
+  shareDownloadLink.classList.remove("hidden");
+  shareSystemBtn.disabled = false;
+  return blob;
+}
+
+async function sharePosterFile() {
+  const blob = shareState.posterBlob || await generateSharePoster();
+  const file = new File([blob], `${shareState.title || "墨舞丹青"}分享图.png`, { type: "image/png" });
+  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+    await navigator.share({
+      title: shareState.title || "墨舞丹青",
+      text: "分享一幅墨舞丹青作品",
+      files: [file],
+    });
+    return true;
+  }
+  return false;
+}
+
+function openShareSheet({ title, category, description, shareUrl, posterImageUrl }) {
+  if (shareState.posterObjectUrl) {
+    URL.revokeObjectURL(shareState.posterObjectUrl);
+  }
+  shareState = {
+    title: title || "",
+    category: category || "",
+    description: description || "",
+    shareUrl,
+    posterImageUrl: posterImageUrl || "",
+    posterBlob: null,
+    posterObjectUrl: "",
+  };
+  shareSheetWork.textContent = title ? `《${title}》` : "作品分享";
+  shareLinkInput.value = shareUrl;
+  shareOpenLink.href = shareUrl;
+  sharePosterPreview.src = "";
+  sharePosterPreview.classList.add("hidden");
+  shareDownloadLink.href = "#";
+  shareDownloadLink.classList.add("hidden");
+  shareSystemBtn.disabled = true;
+  shareSheet.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  shareLinkInput.focus();
+  shareLinkInput.select();
+}
+
+function closeShareSheet() {
+  shareSheet.classList.add("hidden");
+  shareLinkInput.value = "";
+  shareOpenLink.href = "#";
+  if (shareState.posterObjectUrl) {
+    URL.revokeObjectURL(shareState.posterObjectUrl);
+  }
+  shareState = {
+    title: "",
+    category: "",
+    description: "",
+    shareUrl: "",
+    posterImageUrl: "",
+    posterBlob: null,
+    posterObjectUrl: "",
+  };
+  if (lightbox.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+  }
 }
 
 async function fetchJson(url, options) {
@@ -281,6 +545,51 @@ function renderCategories(selectEl, categories) {
   if (previous && categories.includes(previous)) {
     selectEl.value = previous;
   }
+}
+
+function tagsToInputValue(tags) {
+  return Array.isArray(tags) ? tags.join(" ") : "";
+}
+
+function renderTagStrip({ container, tags, selectedTag, onSelect }) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+
+  const allButton = document.createElement("button");
+  allButton.type = "button";
+  allButton.className = `tag-pill${selectedTag ? "" : " active"}`;
+  allButton.textContent = "全部标签";
+  allButton.addEventListener("click", () => onSelect(""));
+  container.appendChild(allButton);
+
+  tags.forEach((tag) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `tag-pill${tag === selectedTag ? " active" : ""}`;
+    button.textContent = tag;
+    button.addEventListener("click", () => onSelect(tag));
+    container.appendChild(button);
+  });
+}
+
+function renderCardTags({ container, tags, keyword, onSelect }) {
+  if (!container) {
+    return;
+  }
+  const normalizedTags = Array.isArray(tags) ? tags : [];
+  container.innerHTML = "";
+  container.classList.toggle("hidden", normalizedTags.length === 0);
+
+  normalizedTags.forEach((tag) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tag-pill card-tag";
+    setHighlightedText(button, tag, keyword);
+    button.addEventListener("click", () => onSelect(tag));
+    container.appendChild(button);
+  });
 }
 
 function setHighlightedText(el, text, keyword) {
@@ -478,6 +787,87 @@ function renderAttachmentStrip({ container, attachments, selectedIndex, onSelect
   });
 }
 
+function moveAttachmentIndex(currentIndex, total, delta) {
+  if (!total) {
+    return 0;
+  }
+  return (currentIndex + delta + total) % total;
+}
+
+function updateAttachmentNavigation({ attachments, selectedIndex, prevBtn, nextBtn, statusEl }) {
+  const hasMultiple = attachments.length > 1;
+  prevBtn.classList.toggle("hidden", !hasMultiple);
+  nextBtn.classList.toggle("hidden", !hasMultiple);
+  statusEl.classList.toggle("hidden", !attachments.length);
+  statusEl.textContent = attachments.length ? `${selectedIndex + 1} / ${attachments.length}` : "";
+}
+
+function bindAttachmentGesture({ shellEl, attachments, getSelectedIndex, onChange }) {
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+
+  shellEl.addEventListener("pointerdown", (event) => {
+    if (attachments.length <= 1 || !event.isPrimary) {
+      return;
+    }
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+  });
+
+  shellEl.addEventListener("pointerup", (event) => {
+    if (attachments.length <= 1 || !event.isPrimary || pointerId !== event.pointerId) {
+      return;
+    }
+    pointerId = null;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) < 32 || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      return;
+    }
+    shellEl.dataset.ignorePreviewClickUntil = String(Date.now() + 400);
+    const nextIndex = moveAttachmentIndex(getSelectedIndex(), attachments.length, deltaX < 0 ? 1 : -1);
+    onChange(nextIndex);
+  });
+
+  shellEl.addEventListener("pointercancel", () => {
+    pointerId = null;
+  });
+}
+
+function bindLightboxGesture() {
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+
+  lightboxContent.addEventListener("pointerdown", (event) => {
+    if (lightboxState.attachments.length <= 1 || !event.isPrimary) {
+      return;
+    }
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+  });
+
+  lightboxContent.addEventListener("pointerup", (event) => {
+    if (lightboxState.attachments.length <= 1 || !event.isPrimary || pointerId !== event.pointerId) {
+      return;
+    }
+    pointerId = null;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) < 32 || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      return;
+    }
+    showLightboxAttachment(deltaX < 0 ? 1 : -1);
+  });
+
+  lightboxContent.addEventListener("pointercancel", () => {
+    pointerId = null;
+  });
+}
+
 function buildPaintingQuery() {
   const params = new URLSearchParams();
   const category = filterCategory.value.trim();
@@ -488,6 +878,9 @@ function buildPaintingQuery() {
   }
   if (q) {
     params.set("q", q);
+  }
+  if (paintingState.selectedTag) {
+    params.set("tag", paintingState.selectedTag);
   }
   params.set("page", String(paintingState.page));
   params.set("pageSize", String(paintingState.pageSize));
@@ -500,6 +893,7 @@ function fillPaintingEditForm(form, item) {
   form.elements.title.value = item.title;
   form.elements.category.value = item.category;
   form.elements.description.value = item.description || "";
+  form.elements.tags.value = tagsToInputValue(item.tags);
   form.elements.image.value = "";
 }
 
@@ -539,6 +933,9 @@ function renderPaintings() {
   pageItems.forEach((item) => {
     const fragment = paintingTemplate.content.cloneNode(true);
     const shellEl = fragment.querySelector(".painting-media");
+    const prevAttachmentBtn = fragment.querySelector(".attachment-prev");
+    const nextAttachmentBtn = fragment.querySelector(".attachment-next");
+    const attachmentStatusEl = fragment.querySelector(".painting-status");
     const previewImageEl = fragment.querySelector(".painting-preview-image");
     const previewVideoEl = fragment.querySelector(".painting-preview-video");
     const tipEl = fragment.querySelector(".painting-tip");
@@ -546,6 +943,8 @@ function renderPaintings() {
     const titleEl = fragment.querySelector(".painting-title");
     const metaEl = fragment.querySelector(".meta");
     const descEl = fragment.querySelector(".description");
+    const tagsEl = fragment.querySelector(".painting-tags");
+    const shareBtn = fragment.querySelector(".share-btn");
     const editBtn = fragment.querySelector(".edit-btn");
     const deleteBtn = fragment.querySelector(".delete-btn");
     const editForm = fragment.querySelector(".edit-form");
@@ -568,6 +967,17 @@ function renderPaintings() {
     metaEl.appendChild(document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`));
 
     setHighlightedText(descEl, item.description || "暂无题跋简介", keyword);
+    renderCardTags({
+      container: tagsEl,
+      tags: item.tags,
+      keyword,
+      onSelect: async (tag) => {
+        paintingState.selectedTag = tag;
+        paintingState.page = 1;
+        renderPaintingTagStrip();
+        await loadPaintings();
+      },
+    });
 
     const renderCurrentAttachment = () => {
       const current = attachments[selectedIndex] || null;
@@ -580,6 +990,13 @@ function renderPaintings() {
       });
 
       shellEl.tabIndex = current ? 0 : -1;
+      updateAttachmentNavigation({
+        attachments,
+        selectedIndex,
+        prevBtn: prevAttachmentBtn,
+        nextBtn: nextAttachmentBtn,
+        statusEl: attachmentStatusEl,
+      });
       renderAttachmentStrip({
         container: attachmentsEl,
         attachments,
@@ -599,7 +1016,7 @@ function renderPaintings() {
               method: "DELETE",
             });
             setMessage(messageEl, "作品附件已删除");
-            await Promise.all([loadPaintingCategories(), loadPaintings()]);
+            await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
           } catch (error) {
             setMessage(messageEl, error.message, true);
           }
@@ -609,31 +1026,64 @@ function renderPaintings() {
 
     renderCurrentAttachment();
 
+    prevAttachmentBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, -1);
+      renderCurrentAttachment();
+    });
+
+    nextAttachmentBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, 1);
+      renderCurrentAttachment();
+    });
+
+    bindAttachmentGesture({
+      shellEl,
+      attachments,
+      getSelectedIndex: () => selectedIndex,
+      onChange: (nextIndex) => {
+        selectedIndex = nextIndex;
+        renderCurrentAttachment();
+      },
+    });
+
     shellEl.addEventListener("click", () => {
-      const current = attachments[selectedIndex];
-      if (!current) {
+      if (Number(shellEl.dataset.ignorePreviewClickUntil || 0) > Date.now()) {
+        return;
+      }
+      if (!attachments[selectedIndex]) {
         return;
       }
       openLightbox({
-        type: current.type,
-        url: current.url,
+        attachments,
+        index: selectedIndex,
         title: item.title,
         category: item.category,
       });
     });
 
     shellEl.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft") {
+        selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, -1);
+        renderCurrentAttachment();
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, 1);
+        renderCurrentAttachment();
+        return;
+      }
       if (event.key !== "Enter" && event.key !== " ") {
         return;
       }
-      const current = attachments[selectedIndex];
-      if (!current) {
+      if (!attachments[selectedIndex]) {
         return;
       }
       event.preventDefault();
       openLightbox({
-        type: current.type,
-        url: current.url,
+        attachments,
+        index: selectedIndex,
         title: item.title,
         category: item.category,
       });
@@ -656,6 +1106,16 @@ function renderPaintings() {
         });
     }
 
+    shareBtn.addEventListener("click", async () => {
+      try {
+        const payload = await fetchJson(`/api/paintings/${item.id}/share`, { method: "POST" });
+        const posterShareUrl = new URL(`${payload.url}?poster=1`, window.location.origin).href;
+        window.location.href = posterShareUrl;
+      } catch (error) {
+        setMessage(messageEl, error.message, true);
+      }
+    });
+
     editBtn.addEventListener("click", () => {
       fillPaintingEditForm(editForm, item);
       resetFilePickers(editForm);
@@ -672,6 +1132,7 @@ function renderPaintings() {
         title: editForm.elements.title.value.trim(),
         category: editForm.elements.category.value.trim(),
         description: editForm.elements.description.value.trim(),
+        tags: editForm.elements.tags.value,
       };
 
       try {
@@ -683,7 +1144,7 @@ function renderPaintings() {
         setMessage(messageEl, "作品已更新");
         editForm.classList.add("hidden");
         resetFilePickers(editForm);
-        await Promise.all([loadPaintingCategories(), loadPaintings()]);
+        await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
       }
@@ -709,7 +1170,7 @@ function renderPaintings() {
         appendForm.reset();
         resetFilePickers(appendForm);
         setMessage(messageEl, "作品附件已追加");
-        await Promise.all([loadPaintingCategories(), loadPaintings()]);
+        await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
       }
@@ -724,7 +1185,7 @@ function renderPaintings() {
       try {
         await fetchJson(`/api/paintings/${item.id}`, { method: "DELETE" });
         setMessage(messageEl, "作品已删除");
-        await Promise.all([loadPaintingCategories(), loadPaintings()]);
+        await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
       } catch (error) {
         setMessage(messageEl, error.message, true);
       }
@@ -761,6 +1222,25 @@ async function loadPaintingCategories() {
   renderCategories(filterCategory, categories);
 }
 
+function renderPaintingTagStrip() {
+  renderTagStrip({
+    container: paintingTagStrip,
+    tags: paintingState.tags,
+    selectedTag: paintingState.selectedTag,
+    onSelect: async (tag) => {
+      paintingState.selectedTag = tag;
+      paintingState.page = 1;
+      renderPaintingTagStrip();
+      await loadPaintings();
+    },
+  });
+}
+
+async function loadPaintingTags() {
+  paintingState.tags = await fetchJson("/api/tags/paintings");
+  renderPaintingTagStrip();
+}
+
 async function loadPaintings({ resetPage = false } = {}) {
   if (resetPage) {
     paintingState.page = 1;
@@ -789,6 +1269,9 @@ function buildMaterialQuery() {
   if (q) {
     params.set("q", q);
   }
+  if (materialState.selectedTag) {
+    params.set("tag", materialState.selectedTag);
+  }
   params.set("page", String(materialState.page));
   params.set("pageSize", String(materialState.pageSize));
 
@@ -800,6 +1283,7 @@ function fillMaterialEditForm(form, item) {
   form.elements.title.value = item.title;
   form.elements.category.value = item.category;
   form.elements.description.value = item.description || "";
+  form.elements.tags.value = tagsToInputValue(item.tags);
   form.elements.asset.value = "";
 }
 
@@ -839,6 +1323,9 @@ function renderMaterials() {
   pageItems.forEach((item) => {
     const fragment = materialTemplate.content.cloneNode(true);
     const shellEl = fragment.querySelector(".material-media");
+    const prevAttachmentBtn = fragment.querySelector(".attachment-prev");
+    const nextAttachmentBtn = fragment.querySelector(".attachment-next");
+    const attachmentStatusEl = fragment.querySelector(".material-status");
     const previewImageEl = fragment.querySelector(".material-preview-image");
     const previewVideoEl = fragment.querySelector(".material-preview-video");
     const tipEl = fragment.querySelector(".material-tip");
@@ -846,6 +1333,7 @@ function renderMaterials() {
     const titleEl = fragment.querySelector(".material-title");
     const metaEl = fragment.querySelector(".material-meta");
     const descEl = fragment.querySelector(".material-description");
+    const tagsEl = fragment.querySelector(".material-tags");
     const editBtn = fragment.querySelector(".material-edit-btn");
     const deleteBtn = fragment.querySelector(".material-delete-btn");
     const editForm = fragment.querySelector(".material-edit-form");
@@ -858,6 +1346,17 @@ function renderMaterials() {
     bindFilePickers(fragment);
     setHighlightedText(titleEl, item.title, keyword);
     setHighlightedText(descEl, item.description || "暂无素材说明", keyword);
+    renderCardTags({
+      container: tagsEl,
+      tags: item.tags,
+      keyword,
+      onSelect: async (tag) => {
+        materialState.selectedTag = tag;
+        materialState.page = 1;
+        renderMaterialTagStrip();
+        await loadMaterials();
+      },
+    });
 
     const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
     const currentType = attachments[0]?.type || materialTypeOf(item);
@@ -880,6 +1379,13 @@ function renderMaterials() {
       });
 
       shellEl.tabIndex = current ? 0 : -1;
+      updateAttachmentNavigation({
+        attachments,
+        selectedIndex,
+        prevBtn: prevAttachmentBtn,
+        nextBtn: nextAttachmentBtn,
+        statusEl: attachmentStatusEl,
+      });
       renderAttachmentStrip({
         container: attachmentsEl,
         attachments,
@@ -899,7 +1405,7 @@ function renderMaterials() {
               method: "DELETE",
             });
             setMessage(materialMessageEl, "素材附件已删除");
-            await Promise.all([loadMaterialCategories(), loadMaterials()]);
+            await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
           } catch (error) {
             setMessage(materialMessageEl, error.message, true);
           }
@@ -909,31 +1415,64 @@ function renderMaterials() {
 
     renderCurrentAttachment();
 
+    prevAttachmentBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, -1);
+      renderCurrentAttachment();
+    });
+
+    nextAttachmentBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, 1);
+      renderCurrentAttachment();
+    });
+
+    bindAttachmentGesture({
+      shellEl,
+      attachments,
+      getSelectedIndex: () => selectedIndex,
+      onChange: (nextIndex) => {
+        selectedIndex = nextIndex;
+        renderCurrentAttachment();
+      },
+    });
+
     shellEl.addEventListener("click", () => {
-      const current = attachments[selectedIndex];
-      if (!current) {
+      if (Number(shellEl.dataset.ignorePreviewClickUntil || 0) > Date.now()) {
+        return;
+      }
+      if (!attachments[selectedIndex]) {
         return;
       }
       openLightbox({
-        type: current.type,
-        url: current.url,
+        attachments,
+        index: selectedIndex,
         title: item.title,
         category: item.category,
       });
     });
 
     shellEl.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft") {
+        selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, -1);
+        renderCurrentAttachment();
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        selectedIndex = moveAttachmentIndex(selectedIndex, attachments.length, 1);
+        renderCurrentAttachment();
+        return;
+      }
       if (event.key !== "Enter" && event.key !== " ") {
         return;
       }
-      const current = attachments[selectedIndex];
-      if (!current) {
+      if (!attachments[selectedIndex]) {
         return;
       }
       event.preventDefault();
       openLightbox({
-        type: current.type,
-        url: current.url,
+        attachments,
+        index: selectedIndex,
         title: item.title,
         category: item.category,
       });
@@ -955,6 +1494,7 @@ function renderMaterials() {
         title: editForm.elements.title.value.trim(),
         category: editForm.elements.category.value.trim(),
         description: editForm.elements.description.value.trim(),
+        tags: editForm.elements.tags.value,
       };
 
       try {
@@ -966,7 +1506,7 @@ function renderMaterials() {
         setMessage(materialMessageEl, "素材已更新");
         editForm.classList.add("hidden");
         resetFilePickers(editForm);
-        await Promise.all([loadMaterialCategories(), loadMaterials()]);
+        await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
       }
@@ -992,7 +1532,7 @@ function renderMaterials() {
         appendForm.reset();
         resetFilePickers(appendForm);
         setMessage(materialMessageEl, "素材附件已追加");
-        await Promise.all([loadMaterialCategories(), loadMaterials()]);
+        await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
       }
@@ -1007,7 +1547,7 @@ function renderMaterials() {
       try {
         await fetchJson(`/api/materials/${item.id}`, { method: "DELETE" });
         setMessage(materialMessageEl, "素材已删除");
-        await Promise.all([loadMaterialCategories(), loadMaterials()]);
+        await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
       }
@@ -1020,6 +1560,25 @@ function renderMaterials() {
 async function loadMaterialCategories() {
   const categories = await fetchJson("/api/material-categories");
   renderCategories(materialFilterCategory, categories);
+}
+
+function renderMaterialTagStrip() {
+  renderTagStrip({
+    container: materialTagStrip,
+    tags: materialState.tags,
+    selectedTag: materialState.selectedTag,
+    onSelect: async (tag) => {
+      materialState.selectedTag = tag;
+      materialState.page = 1;
+      renderMaterialTagStrip();
+      await loadMaterials();
+    },
+  });
+}
+
+async function loadMaterialTags() {
+  materialState.tags = await fetchJson("/api/tags/materials");
+  renderMaterialTagStrip();
 }
 
 async function loadMaterials({ resetPage = false } = {}) {
@@ -1151,6 +1710,8 @@ tabButtons.forEach((button) => {
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(uploadForm);
+  formData.delete("tags");
+  formData.append("tags", uploadForm.elements.tags.value.trim());
 
   try {
     await fetchJson("/api/paintings", {
@@ -1160,7 +1721,7 @@ uploadForm.addEventListener("submit", async (event) => {
     uploadForm.reset();
     resetFilePickers(uploadForm);
     setMessage(messageEl, "作品已收入册");
-    await Promise.all([loadPaintingCategories(), loadPaintings({ resetPage: true })]);
+    await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings({ resetPage: true })]);
   } catch (error) {
     setMessage(messageEl, error.message, true);
   }
@@ -1185,6 +1746,8 @@ searchBtn.addEventListener("click", async () => {
 resetBtn.addEventListener("click", async () => {
   filterCategory.value = "";
   searchInput.value = "";
+  paintingState.selectedTag = "";
+  renderPaintingTagStrip();
   try {
     await loadPaintings({ resetPage: true });
     setMessage(messageEl, "已清空作品检索条件");
@@ -1196,6 +1759,8 @@ resetBtn.addEventListener("click", async () => {
 materialUploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(materialUploadForm);
+  formData.delete("tags");
+  formData.append("tags", materialUploadForm.elements.tags.value.trim());
 
   try {
     await fetchJson("/api/materials", {
@@ -1205,7 +1770,7 @@ materialUploadForm.addEventListener("submit", async (event) => {
     materialUploadForm.reset();
     resetFilePickers(materialUploadForm);
     setMessage(materialMessageEl, "素材已收入库");
-    await Promise.all([loadMaterialCategories(), loadMaterials({ resetPage: true })]);
+    await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials({ resetPage: true })]);
   } catch (error) {
     setMessage(materialMessageEl, error.message, true);
   }
@@ -1230,6 +1795,8 @@ materialSearchBtn.addEventListener("click", async () => {
 materialResetBtn.addEventListener("click", async () => {
   materialFilterCategory.value = "";
   materialSearchInput.value = "";
+  materialState.selectedTag = "";
+  renderMaterialTagStrip();
   try {
     await loadMaterials({ resetPage: true });
     setMessage(materialMessageEl, "已清空素材检索条件");
@@ -1314,6 +1881,57 @@ lightboxClose.addEventListener("click", () => {
   closeLightbox();
 });
 
+lightboxPrev.addEventListener("click", (event) => {
+  event.stopPropagation();
+  showLightboxAttachment(-1);
+});
+
+lightboxNext.addEventListener("click", (event) => {
+  event.stopPropagation();
+  showLightboxAttachment(1);
+});
+
+shareSheetClose.addEventListener("click", () => {
+  closeShareSheet();
+});
+
+shareCopyBtn.addEventListener("click", async () => {
+  const shareUrl = shareLinkInput.value.trim();
+  if (!shareUrl) {
+    return;
+  }
+  const copied = await copyShareUrl(shareUrl);
+  shareCopyBtn.textContent = copied ? "已复制" : "复制链接";
+  setTimeout(() => {
+    shareCopyBtn.textContent = "复制链接";
+  }, 1600);
+});
+
+sharePosterBtn.addEventListener("click", async () => {
+  sharePosterBtn.disabled = true;
+  sharePosterBtn.textContent = "生成中...";
+  try {
+    await generateSharePoster();
+    setMessage(messageEl, "分享图片已生成，可长按保存或点“分享图片”");
+  } catch (error) {
+    setMessage(messageEl, error.message, true);
+  } finally {
+    sharePosterBtn.disabled = false;
+    sharePosterBtn.textContent = "生成分享图片";
+  }
+});
+
+shareSystemBtn.addEventListener("click", async () => {
+  try {
+    const shared = await sharePosterFile();
+    if (!shared) {
+      setMessage(messageEl, "当前浏览器不支持直接分享图片，请长按预览图保存后发朋友圈", true);
+    }
+  } catch (error) {
+    setMessage(messageEl, error.message, true);
+  }
+});
+
 currentUserAvatar.addEventListener("click", () => {
   if (!currentUser?.avatarUrl) {
     return;
@@ -1333,13 +1951,48 @@ lightbox.addEventListener("click", (event) => {
   }
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !lightbox.classList.contains("hidden")) {
-    closeLightbox();
+shareSheet.addEventListener("click", (event) => {
+  if (event.target === shareSheet) {
+    closeShareSheet();
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    if (!lightbox.classList.contains("hidden")) {
+      closeLightbox();
+    }
+    if (!shareSheet.classList.contains("hidden")) {
+      closeShareSheet();
+    }
+    return;
+  }
+  if (lightbox.classList.contains("hidden")) {
+    return;
+  }
+  if (event.key === "ArrowLeft") {
+    showLightboxAttachment(-1);
+    return;
+  }
+  if (event.key === "ArrowRight") {
+    showLightboxAttachment(1);
+  }
+});
+
+bindLightboxGesture();
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 (async () => {
   bindFilePickers();
+  registerServiceWorker();
   await initializeAuth();
 })();

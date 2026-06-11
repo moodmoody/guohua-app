@@ -36,6 +36,7 @@ const PASSWORD_DIGEST = "sha256";
 const DEFAULT_USER_USERNAME = "lulia";
 const DEFAULT_LIST_PAGE_SIZE = 6;
 const MAX_LIST_PAGE_SIZE = 24;
+const MAX_TAGS_PER_ITEM = 12;
 let generatedLegacyPassword = "";
 let legacyPasswordLogged = false;
 
@@ -87,8 +88,14 @@ const uploadAvatar = createUploader({
   typeMessage: "Only JPG / PNG / WEBP avatar images are supported",
 });
 
+function setPublicCacheHeaders(res, filePath) {
+  if (path.basename(filePath) === "index.html") {
+    res.setHeader("Cache-Control", "no-store");
+  }
+}
+
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public"), { maxAge: PUBLIC_CACHE_MS }));
+app.use(express.static(path.join(__dirname, "public"), { maxAge: PUBLIC_CACHE_MS, setHeaders: setPublicCacheHeaders }));
 app.use("/uploads", express.static(uploadDir, { immutable: true, maxAge: UPLOAD_CACHE_MS }));
 
 function getMaxId(items) {
@@ -204,6 +211,10 @@ function clearSessionCookie(res) {
     "Set-Cookie",
     `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`
   );
+}
+
+function createShareToken() {
+  return crypto.randomBytes(18).toString("base64url");
 }
 
 function createSession(db, userId) {
@@ -587,6 +598,231 @@ function trimText(value) {
   return String(value ?? "").trim();
 }
 
+function normalizeTags(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : String(value || "").split(/[\s,，、;；/]+/u);
+  const seen = new Set();
+  const tags = [];
+
+  rawItems.forEach((item) => {
+    const tag = trimText(item);
+    if (!tag || seen.has(tag)) {
+      return;
+    }
+    seen.add(tag);
+    tags.push(tag);
+  });
+
+  return tags.slice(0, MAX_TAGS_PER_ITEM);
+}
+
+function getItemTags(item) {
+  return normalizeTags(item?.tags);
+}
+
+function itemHasTag(item, tag) {
+  if (!tag) {
+    return true;
+  }
+  return getItemTags(item).some((itemTag) => itemTag.toLowerCase() === tag);
+}
+
+function collectTags(items) {
+  const tags = new Set();
+  items.forEach((item) => {
+    getItemTags(item).forEach((tag) => tags.add(tag));
+  });
+  return [...tags].sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+}
+
+function serializeItemWithTags(item) {
+  return {
+    ...item,
+    tags: getItemTags(item),
+  };
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function absoluteUrl(req, url = "") {
+  const rawUrl = trimText(url);
+  if (/^https?:\/\//i.test(rawUrl)) {
+    return rawUrl;
+  }
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  return new URL(rawUrl || "/", baseUrl).toString();
+}
+
+function getRecordAttachments(record, legacyField) {
+  const attachments = Array.isArray(record?.attachments)
+    ? record.attachments
+        .map((attachment) => {
+          const url = extractAttachmentUrl(attachment);
+          return url
+            ? toAttachmentRecord({
+                id: extractAttachmentId(attachment),
+                url,
+                type: normalizeAssetType(attachment?.type, url),
+              })
+            : null;
+        })
+        .filter(Boolean)
+    : [];
+  const legacyUrl = trimText(record?.[legacyField]);
+  if (!attachments.length && legacyUrl) {
+    attachments.push(
+      toAttachmentRecord({
+        id: attachmentIdFromUrl(legacyUrl),
+        url: legacyUrl,
+        type: normalizeAssetType(record?.assetType, legacyUrl),
+      })
+    );
+  }
+  return attachments;
+}
+
+function renderSharePage({ req, painting }) {
+  const attachments = getRecordAttachments(painting, "imageUrl").filter((attachment) => attachment.type !== "video");
+  const coverUrl = absoluteUrl(req, attachments[0]?.url || painting.imageUrl || "/assets/logo-huaniao-user.jpeg");
+  const shareUrl = absoluteUrl(req, `/share/${painting.shareToken}`);
+  const title = trimText(painting.title) || "墨舞丹青作品";
+  const category = trimText(painting.category);
+  const description = trimText(painting.description) || "一幅收于墨舞丹青的国画作品。";
+  const isPoster = trimText(req.query.poster) === "1";
+  const gallery = attachments
+    .map((attachment, index) => {
+      const imageUrl = absoluteUrl(req, attachment.url);
+      return `<figure><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(`${title} ${index + 1}`)}" loading="${index === 0 ? "eager" : "lazy"}" /></figure>`;
+    })
+    .join("");
+  const posterMarkup = `<section class="share-poster-stage">
+        <canvas
+          id="share-poster-canvas"
+          class="share-poster-canvas"
+          width="1080"
+          height="1440"
+          data-image="${escapeHtml(coverUrl)}"
+          data-title="${escapeHtml(title)}"
+          data-category="${escapeHtml(category || "国画作品")}"
+          data-description="${escapeHtml(description)}"
+        ></canvas>
+        <img id="share-poster-image" class="share-poster-image hidden" alt="${escapeHtml(title)}分享海报" />
+        <p class="share-poster-hint">长按保存海报图片到相册，再到微信朋友圈发布图片。</p>
+      </section>`;
+  const posterScript = `<script>
+      function loadPosterImage(src) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.crossOrigin = "anonymous";
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = src;
+        });
+      }
+      function drawImageContain(ctx, image, x, y, width, height) {
+        const ratio = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+        const drawWidth = image.naturalWidth * ratio;
+        const drawHeight = image.naturalHeight * ratio;
+        ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+      }
+      function drawSharePoster(canvas, image) {
+        const ctx = canvas.getContext("2d");
+        const title = canvas.dataset.title || "墨舞丹青";
+        const category = canvas.dataset.category || "国画作品";
+        const description = canvas.dataset.description || "";
+        ctx.fillStyle = "#f4ead8";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(170, 61, 45, 0.08)";
+        ctx.fillRect(58, 58, canvas.width - 116, canvas.height - 116);
+        ctx.fillStyle = "#2c241c";
+        ctx.fillRect(112, 140, 856, 872);
+        ctx.fillStyle = "#fff8ec";
+        ctx.fillRect(142, 170, 796, 812);
+        ctx.fillStyle = "#19140f";
+        ctx.fillRect(176, 204, 728, 744);
+        drawImageContain(ctx, image, 176, 204, 728, 744);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#241f1a";
+        ctx.font = '72px "STXingkai", "KaiTi", serif';
+        ctx.fillText(title, 540, 1140, 820);
+        ctx.fillStyle = "#685b4b";
+        ctx.font = '34px "STXingkai", "KaiTi", serif';
+        ctx.fillText(category, 540, 1268);
+        ctx.font = '26px "KaiTi", serif';
+        ctx.fillText(description, 540, 1322, 760);
+        ctx.fillStyle = "#aa3d2d";
+        ctx.font = '30px "STXingkai", "KaiTi", serif';
+        ctx.fillText("墨舞丹青", 540, 1384);
+      }
+      (async () => {
+        const canvas = document.getElementById("share-poster-canvas");
+        const posterImage = document.getElementById("share-poster-image");
+        const image = await loadPosterImage(canvas.dataset.image);
+        drawSharePoster(canvas, image);
+        posterImage.src = canvas.toDataURL("image/png");
+        posterImage.classList.remove("hidden");
+        canvas.classList.add("hidden");
+      })();
+    </script>`;
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(title)} · 墨舞丹青</title>
+    <meta name="description" content="${escapeHtml(description)}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="${escapeHtml(category ? `${title} · ${category}` : title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:image" content="${escapeHtml(coverUrl)}" />
+    <meta property="og:url" content="${escapeHtml(shareUrl)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(category ? `${title} · ${category}` : title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${escapeHtml(coverUrl)}" />
+    <link rel="stylesheet" href="/style.css?v=20260607-card-gap" />
+  </head>
+  <body class="share-body">
+    <main class="share-page">
+      <section class="share-hero">
+        <span class="eyebrow">墨舞丹青 · 公开分享</span>
+        <h1>${escapeHtml(title)}</h1>
+        <p class="share-meta">${escapeHtml(category || "未分类")} · 微信朋友圈分享页</p>
+      </section>
+      ${isPoster ? posterMarkup : `<section class="share-gallery">${gallery}</section>`}
+      <section class="share-note${isPoster ? " hidden" : ""}">
+        <p>${escapeHtml(description)}</p>
+        <div class="share-actions">
+          <button id="share-copy-btn" type="button" data-share-url="${escapeHtml(shareUrl)}">复制分享链接</button>
+          <span>在微信中打开后，可从右上角菜单分享到朋友圈。</span>
+        </div>
+      </section>
+    </main>
+    <script>
+      document.getElementById("share-copy-btn")?.addEventListener("click", async (event) => {
+        const url = event.currentTarget.dataset.shareUrl;
+        try {
+          await navigator.clipboard.writeText(url);
+          event.currentTarget.textContent = "链接已复制";
+        } catch (_error) {
+          window.prompt("复制分享链接", url);
+        }
+      });
+    </script>
+    ${isPoster ? posterScript : ""}
+  </body>
+</html>`;
+}
+
 function validateInviteCode(value) {
   const configuredInviteCode = trimText(process.env.REGISTRATION_INVITE_CODE);
   if (!configuredInviteCode || trimText(value) !== configuredInviteCode) {
@@ -625,6 +861,7 @@ function matchesKeyword(item, q) {
     item.category,
     item.description,
     item.assetType === "video" ? "video" : "image",
+    ...getItemTags(item),
   ]
     .map((value) => trimText(value).toLowerCase())
     .join(" ");
@@ -861,6 +1098,7 @@ app.post("/api/profile/password", requireUser, async (req, res, next) => {
 app.get("/api/paintings", requireUser, async (req, res, next) => {
   try {
     const category = trimText(req.query.category).toLowerCase();
+    const tag = trimText(req.query.tag).toLowerCase();
     const q = trimText(req.query.q).toLowerCase();
 
     const db = await readDb();
@@ -870,17 +1108,23 @@ app.get("/api/paintings", requireUser, async (req, res, next) => {
       result = result.filter((item) => item.category.toLowerCase() === category);
     }
 
+    if (tag) {
+      result = result.filter((item) => itemHasTag(item, tag));
+    }
+
     if (q) {
       result = result.filter((item) => {
         return (
           item.title.toLowerCase().includes(q) ||
           item.category.toLowerCase().includes(q) ||
-          trimText(item.description).toLowerCase().includes(q)
+          trimText(item.description).toLowerCase().includes(q) ||
+          getItemTags(item).some((itemTag) => itemTag.toLowerCase().includes(q))
         );
       });
     }
 
     result.sort((a, b) => b.id - a.id);
+    result = result.map(serializeItemWithTags);
     res.json(paginateItems(result, req.query));
   } catch (error) {
     next(error);
@@ -900,7 +1144,7 @@ app.get("/api/paintings/:id", requireUser, async (req, res, next) => {
       return res.status(404).json({ error: "Painting not found" });
     }
 
-    res.json(painting);
+    res.json(serializeItemWithTags(painting));
   } catch (error) {
     next(error);
   }
@@ -918,11 +1162,21 @@ app.get("/api/categories", requireUser, async (req, res, next) => {
   }
 });
 
+app.get("/api/tags/paintings", requireUser, async (req, res, next) => {
+  try {
+    const db = await readDb();
+    res.json(collectTags(ownedItems(db.paintings, req.currentUser)));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/paintings", requireUser, uploadPainting.array("image", MAX_UPLOAD_FILES_PER_REQUEST), async (req, res, next) => {
   try {
     const title = trimText(req.body.title);
     const category = trimText(req.body.category);
     const description = trimText(req.body.description);
+    const tags = normalizeTags(req.body.tags);
     const files = Array.isArray(req.files) ? req.files : [];
 
     if (!title) {
@@ -947,6 +1201,7 @@ app.post("/api/paintings", requireUser, uploadPainting.array("image", MAX_UPLOAD
       description,
       imageUrl: attachments[0].url,
       attachments,
+      tags,
       comments: [],
       ownerUserId: req.currentUser.id,
       createdAt: new Date().toISOString(),
@@ -984,6 +1239,7 @@ app.patch("/api/paintings/:id", requireUser, async (req, res, next) => {
     const hasTitle = Object.prototype.hasOwnProperty.call(req.body, "title");
     const hasCategory = Object.prototype.hasOwnProperty.call(req.body, "category");
     const hasDescription = Object.prototype.hasOwnProperty.call(req.body, "description");
+    const hasTags = Object.prototype.hasOwnProperty.call(req.body, "tags");
 
     if (hasTitle) {
       const title = trimText(req.body.title);
@@ -1005,10 +1261,49 @@ app.patch("/api/paintings/:id", requireUser, async (req, res, next) => {
       painting.description = trimText(req.body.description);
     }
 
+    if (hasTags) {
+      painting.tags = normalizeTags(req.body.tags);
+    }
+
     painting.updatedAt = new Date().toISOString();
     await writeDb(db);
 
-    res.json(painting);
+    res.json(serializeItemWithTags(painting));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/paintings/:id/share", requireUser, async (req, res, next) => {
+  try {
+    const id = toId(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "Invalid painting ID" });
+    }
+
+    const db = await readDb();
+    const painting = db.paintings.find((item) => item.id === id && belongsToUser(item, req.currentUser));
+    if (!painting) {
+      return res.status(404).json({ error: "Painting not found" });
+    }
+
+    if (!trimText(painting.shareToken)) {
+      const existingTokens = new Set(db.paintings.map((item) => trimText(item.shareToken)).filter(Boolean));
+      let token = createShareToken();
+      while (existingTokens.has(token)) {
+        token = createShareToken();
+      }
+      painting.shareToken = token;
+      painting.sharedAt = new Date().toISOString();
+      await writeDb(db);
+    }
+
+    res.json({
+      id: painting.id,
+      title: painting.title,
+      url: `/share/${painting.shareToken}`,
+      shareToken: painting.shareToken,
+    });
   } catch (error) {
     next(error);
   }
@@ -1140,9 +1435,30 @@ app.post("/api/paintings/:id/comments", requireUser, async (req, res, next) => {
   }
 });
 
+app.get("/share/:token", async (req, res, next) => {
+  try {
+    const token = trimText(req.params.token);
+    if (!/^[A-Za-z0-9_-]{12,}$/.test(token)) {
+      return res.status(404).send("Share not found");
+    }
+
+    const db = await readDb();
+    const painting = db.paintings.find((item) => trimText(item.shareToken) === token);
+    if (!painting) {
+      return res.status(404).send("Share not found");
+    }
+
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.type("html").send(renderSharePage({ req, painting }));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/materials", requireUser, async (req, res, next) => {
   try {
     const category = trimText(req.query.category).toLowerCase();
+    const tag = trimText(req.query.tag).toLowerCase();
     const q = trimText(req.query.q).toLowerCase();
 
     const db = await readDb();
@@ -1152,11 +1468,16 @@ app.get("/api/materials", requireUser, async (req, res, next) => {
       result = result.filter((item) => item.category.toLowerCase() === category);
     }
 
+    if (tag) {
+      result = result.filter((item) => itemHasTag(item, tag));
+    }
+
     if (q) {
       result = result.filter((item) => matchesKeyword(item, q));
     }
 
     result.sort((a, b) => b.id - a.id);
+    result = result.map(serializeItemWithTags);
     res.json(paginateItems(result, req.query));
   } catch (error) {
     next(error);
@@ -1176,7 +1497,7 @@ app.get("/api/materials/:id", requireUser, async (req, res, next) => {
       return res.status(404).json({ error: "Material not found" });
     }
 
-    res.json(material);
+    res.json(serializeItemWithTags(material));
   } catch (error) {
     next(error);
   }
@@ -1194,11 +1515,21 @@ app.get("/api/material-categories", requireUser, async (req, res, next) => {
   }
 });
 
+app.get("/api/tags/materials", requireUser, async (req, res, next) => {
+  try {
+    const db = await readDb();
+    res.json(collectTags(ownedItems(db.materials, req.currentUser)));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/materials", requireUser, uploadMaterial.array("asset", MAX_UPLOAD_FILES_PER_REQUEST), async (req, res, next) => {
   try {
     const title = trimText(req.body.title);
     const category = trimText(req.body.category);
     const description = trimText(req.body.description);
+    const tags = normalizeTags(req.body.tags);
     const files = Array.isArray(req.files) ? req.files : [];
 
     if (!title) {
@@ -1226,6 +1557,7 @@ app.post("/api/materials", requireUser, uploadMaterial.array("asset", MAX_UPLOAD
       assetType: attachments[0].type,
       assetUrl: attachments[0].url,
       attachments,
+      tags,
       ownerUserId: req.currentUser.id,
       createdAt: new Date().toISOString(),
     };
@@ -1262,6 +1594,7 @@ app.patch("/api/materials/:id", requireUser, async (req, res, next) => {
     const hasTitle = Object.prototype.hasOwnProperty.call(req.body, "title");
     const hasCategory = Object.prototype.hasOwnProperty.call(req.body, "category");
     const hasDescription = Object.prototype.hasOwnProperty.call(req.body, "description");
+    const hasTags = Object.prototype.hasOwnProperty.call(req.body, "tags");
 
     if (hasTitle) {
       const title = trimText(req.body.title);
@@ -1283,10 +1616,14 @@ app.patch("/api/materials/:id", requireUser, async (req, res, next) => {
       material.description = trimText(req.body.description);
     }
 
+    if (hasTags) {
+      material.tags = normalizeTags(req.body.tags);
+    }
+
     material.updatedAt = new Date().toISOString();
     await writeDb(db);
 
-    res.json(material);
+    res.json(serializeItemWithTags(material));
   } catch (error) {
     next(error);
   }
