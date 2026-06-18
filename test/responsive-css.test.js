@@ -41,3 +41,15 @@ test("mobile cards keep clear visual separation between works", async () => {
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.card\s*\{[\s\S]*?box-shadow:\s*0\s*12px\s*26px/);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.card\s*\+\s*\.card\s*\{[\s\S]*?margin-top:\s*6px/);
 });
+
+test("authenticated mobile shell cannot expand wider than the viewport", async () => {
+  const css = await readStyle();
+
+  assert.match(css, /html,\s*body\s*\{[\s\S]*?overflow-x:\s*hidden/);
+  assert.match(css, /\.container,\s*\.header,\s*\.panel,\s*\.tab-pane,\s*\.cards,\s*\.card\s*\{[\s\S]*?min-width:\s*0/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.user-summary\s*\{[\s\S]*?grid-template-columns:\s*42px\s+minmax\(0,\s*1fr\)\s+auto/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.membership-summary\s*\{[\s\S]*?overflow:\s*hidden/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?input,\s*select,\s*textarea,\s*button\s*\{[\s\S]*?max-width:\s*100%/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?input,\s*select,\s*textarea\s*\{[\s\S]*?font-size:\s*16px/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.header\s*\{[\s\S]*?overflow:\s*hidden/);
+});

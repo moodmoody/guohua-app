@@ -28,6 +28,13 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   color: var(--ink);
@@ -81,6 +88,16 @@ video {
   padding: 34px 18px 52px;
   position: relative;
   z-index: 1;
+}
+
+.container,
+.header,
+.panel,
+.tab-pane,
+.cards,
+.card {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .auth-screen {
@@ -204,6 +221,15 @@ video {
 .auth-note span,
 .auth-brief {
   color: var(--ink-soft);
+}
+
+.auth-benefit {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(191, 164, 124, 0.48);
+  color: #6f4f31;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .auth-brief h2 {
@@ -469,6 +495,17 @@ video {
   line-height: 1.35;
 }
 
+.membership-summary {
+  max-width: 210px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(191, 164, 124, 0.45);
+  color: #6f4f31;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
 .user-summary button {
   width: auto;
   margin-top: 0;
@@ -594,6 +631,8 @@ select,
 textarea,
 button {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 7px;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -735,6 +774,124 @@ button.danger {
   margin-top: 0;
 }
 
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.section-head p {
+  margin: 4px 0 0;
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.section-head button {
+  width: auto;
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+.admin-users {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-user-card {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px;
+  border: 1px solid rgba(191, 164, 124, 0.58);
+  border-radius: 8px;
+  background: rgba(255, 250, 240, 0.72);
+}
+
+.admin-user-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  grid-column: 1 / -1;
+}
+
+.admin-user-main strong,
+.admin-user-main span {
+  display: block;
+}
+
+.admin-user-username,
+.admin-user-usage {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.admin-user-plan {
+  padding: 4px 9px;
+  border: 1px solid rgba(49, 95, 69, 0.32);
+  border-radius: 999px;
+  color: var(--pine-deep);
+  background: rgba(49, 95, 69, 0.08);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-user-usage {
+  align-self: center;
+}
+
+.admin-user-open {
+  width: auto;
+  min-width: 72px;
+  margin-top: 0;
+  align-self: center;
+  justify-self: end;
+}
+
+.admin-user-detail {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(191, 164, 124, 0.58);
+}
+
+.admin-quota-form {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.9fr) repeat(3, minmax(88px, 0.8fr)) auto minmax(180px, auto);
+  align-items: end;
+  gap: 10px;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+}
+
+.check-field input {
+  width: auto;
+  min-height: 0;
+  margin-top: 0;
+}
+
+.admin-user-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-user-actions button {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.empty-state {
+  margin: 0;
+  color: var(--ink-faint);
+}
+
 .tag-strip,
 .tag-list {
   display: flex;
@@ -794,6 +951,17 @@ button.danger {
   min-height: 24px;
   font-size: 14px;
   color: var(--ink-faint);
+}
+
+.register-benefit {
+  margin: 4px 0 2px;
+  padding: 8px 10px;
+  border: 1px solid rgba(191, 164, 124, 0.5);
+  border-radius: 6px;
+  background: rgba(255, 250, 240, 0.58);
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .hidden {
@@ -1547,11 +1715,32 @@ mark.hl {
   .profile-layout {
     grid-template-columns: 1fr;
   }
+
+  .admin-quota-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-user-actions {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 640px) {
   body {
     overflow-x: hidden;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    max-width: 100%;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 
   button:hover,
@@ -1599,7 +1788,7 @@ mark.hl {
 
   .header {
     padding: 14px 12px;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .title-row {
@@ -1682,10 +1871,25 @@ mark.hl {
   .user-summary {
     position: static;
     justify-self: stretch;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
     max-width: none;
-    flex-wrap: nowrap;
+    width: 100%;
     margin-top: 10px;
     padding: 8px;
+    overflow: hidden;
+  }
+
+  .user-summary > div {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .membership-summary {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .user-summary button {
@@ -1717,7 +1921,10 @@ mark.hl {
   .toolbar-actions,
   .card-actions,
   .edit-actions,
-  .comment-form {
+  .comment-form,
+  .section-head,
+  .admin-user-main,
+  .admin-user-actions {
     flex-direction: column;
     gap: 8px;
   }
@@ -1725,8 +1932,15 @@ mark.hl {
   .toolbar-actions button,
   .card-actions button,
   .edit-actions button,
-  .comment-form button {
+  .comment-form button,
+  .section-head button,
+  .admin-user-open,
+  .admin-user-actions button {
     width: 100%;
+  }
+
+  .admin-quota-form {
+    grid-template-columns: 1fr;
   }
 
   .tag-strip {

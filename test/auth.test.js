@@ -170,6 +170,30 @@ test("registration requires the configured invitation code", async () => {
   }
 });
 
+test("registration accepts any code from the configured invite code list", async () => {
+  const fixture = await startFixture(null, {
+    REGISTRATION_INVITE_CODE: "",
+    REGISTRATION_INVITE_CODES: "alpha-one, beta-two\n gamma-three ",
+  });
+  try {
+    const accepted = await fetch(`${fixture.baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "listed", password: "brush-pass-123", inviteCode: "beta-two" }),
+    });
+    assert.equal(accepted.status, 201);
+
+    const rejected = await fetch(`${fixture.baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "unlisted", password: "brush-pass-123", inviteCode: "delta-four" }),
+    });
+    assert.equal(rejected.status, 403);
+  } finally {
+    await stopFixture(fixture);
+  }
+});
+
 test("register creates a user, stores a password hash, and requires login afterward", async () => {
   const fixture = await startFixture();
   try {
@@ -184,6 +208,13 @@ test("register creates a user, stores a password hash, and requires login afterw
     assert.equal(db.users.length, 1);
     assert.notEqual(db.users[0].passwordHash, "brush-pass-123");
     assert.ok(String(db.users[0].passwordHash).startsWith("pbkdf2$"));
+    assert.equal(db.users[0].plan, "free");
+    assert.deepEqual(db.users[0].quota, {
+      storageBytes: 200 * 1024 * 1024,
+      paintingLimit: 10,
+      materialLimit: 10,
+      aiEnabled: false,
+    });
     assert.equal(db.sessions.length, 0);
 
     const me = await fetch(`${fixture.baseUrl}/api/auth/me`);

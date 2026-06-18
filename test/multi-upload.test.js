@@ -185,6 +185,11 @@ function makePngBlob(seed) {
   return new Blob([bytes], { type: 'image/png' });
 }
 
+function makeHeicBlob(seed) {
+  const bytes = new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112, seed, 10, 26, 10]);
+  return new Blob([bytes], { type: 'image/heic' });
+}
+
 function makeSizedPngBlob(sizeBytes, fillByte) {
   const bytes = Buffer.alloc(sizeBytes, fillByte);
   return new Blob([bytes], { type: 'image/png' });
@@ -270,6 +275,73 @@ test('POST /api/paintings with multiple images returns one object with attachmen
   assert.equal(created.attachments.length, 2);
 });
 
+test('POST /api/paintings accepts iPhone HEIC images', async () => {
+  const form = new FormData();
+  form.append('title', 'HEIC Painting');
+  form.append('category', 'mobile');
+  form.append('description', 'Uploaded from iPhone');
+  form.append('image', makeHeicBlob(1), 'iphone-photo.heic');
+
+  const res = await fetch(`${baseUrl}/api/paintings`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+  });
+
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.equal(body.imageUrl.endsWith('.heic'), true);
+  assert.equal(body.attachments[0].url.endsWith('.heic'), true);
+});
+
+test('POST /api/paintings rejects images over the 10MB limit with a clear reason', async () => {
+  const form = new FormData();
+  form.append('title', 'Large Mobile Photo');
+  form.append('category', 'mobile');
+  form.append('description', 'Original phone photo before browser compression');
+  form.append('image', makeSizedPngBlob(20 * 1024 * 1024, 17), 'large-mobile-photo.png');
+
+  const res = await fetch(`${baseUrl}/api/paintings`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+  });
+
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.equal(body.error, 'Image file must be <= 10MB');
+});
+
+test('POST /api/paintings/:id/attachments accepts iPhone HEIC images', async () => {
+  const createForm = new FormData();
+  createForm.append('title', 'HEIC Attachment Base');
+  createForm.append('category', 'mobile');
+  createForm.append('description', 'Create one attachment first');
+  createForm.append('image', makePngBlob(41), 'heic-base.png');
+
+  const createRes = await fetch(`${baseUrl}/api/paintings`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: createForm,
+  });
+  assert.equal(createRes.status, 201);
+  const created = await createRes.json();
+
+  const appendForm = new FormData();
+  appendForm.append('image', makeHeicBlob(2), 'iphone-append.heic');
+
+  const appendRes = await fetch(`${baseUrl}/api/paintings/${created.id}/attachments`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: appendForm,
+  });
+
+  assert.equal(appendRes.status, 200);
+  const appendBody = await appendRes.json();
+  assert.equal(appendBody.attachments.length, created.attachments.length + 1);
+  assert.equal(appendBody.attachments.at(-1).url.endsWith('.heic'), true);
+});
+
 test('POST /api/materials with multiple assets returns one object with attachments[2]', async () => {
   const form = new FormData();
   form.append('title', 'Multi Asset Material');
@@ -299,6 +371,25 @@ test('POST /api/materials with multiple assets returns one object with attachmen
   assert.ok(created, 'expected created material to exist in list response');
   assert.equal(Array.isArray(created.attachments), true);
   assert.equal(created.attachments.length, 2);
+});
+
+test('POST /api/materials accepts HEIC images from mobile photo libraries', async () => {
+  const form = new FormData();
+  form.append('title', 'HEIC Material');
+  form.append('category', 'reference');
+  form.append('description', 'Uploaded from iPhone');
+  form.append('asset', makeHeicBlob(3), 'iphone-reference.heic');
+
+  const res = await fetch(`${baseUrl}/api/materials`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+  });
+
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.equal(body.assetUrl.endsWith('.heic'), true);
+  assert.equal(body.attachments[0].url.endsWith('.heic'), true);
 });
 
 test('POST /api/materials accepts 81MB uploads within the deployed limit', async () => {

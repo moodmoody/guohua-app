@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#315f45" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="墨舞丹青" />
     <title>墨舞丹青 · 画事案卷</title>
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/assets/app-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=20260607-card-gap" />
+    <link rel="stylesheet" href="/style.css?v=20260617-upload-message" />
   </head>
   <body>
     <section id="auth-screen" class="auth-screen">
@@ -25,6 +28,7 @@
             <div class="auth-note">
               <strong>案卷私藏</strong>
               <span>以登录为主入口，注册仅对持邀请码的使用者开放。</span>
+              <span id="login-free-benefit" class="auth-benefit">免费试用：200M 空间，最多 10 个作品和 10 个素材。付费后可解锁更大空间、更多作品素材额度和 AI 功能。</span>
             </div>
             <div class="auth-brief">
               <h2>一卷收齐</h2>
@@ -98,6 +102,7 @@
             <strong id="current-user-name"></strong>
             <span id="current-user-username"></span>
             <span id="current-user-bio" class="user-bio"></span>
+            <span id="membership-summary" class="membership-summary"></span>
           </div>
           <button id="logout-btn" type="button" class="ghost">退出</button>
         </div>
@@ -163,9 +168,10 @@
             </label>
             <label>
               作品图像
-              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" multiple required />
+              <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple required />
             </label>
             <button type="submit">收入作品册</button>
+            <div id="upload-message" class="message"></div>
           </form>
         </section>
 
@@ -235,7 +241,7 @@
                 name="asset"
                 type="file"
                 multiple
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
                 required
               />
             </label>
@@ -290,7 +296,7 @@
             <form id="avatar-form">
               <label>
                 头像
-                <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" required />
+                <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" required />
               </label>
               <button type="submit">更新头像</button>
             </form>
@@ -307,6 +313,17 @@
             </form>
           </div>
           <div id="profile-message" class="message"></div>
+          <section id="admin-user-management" class="panel admin-panel hidden">
+            <div class="section-head">
+              <div>
+                <h2>用户管理</h2>
+                <p>管理试用额度、权限和不再使用的账号。</p>
+              </div>
+              <button id="admin-users-refresh" type="button" class="ghost">刷新</button>
+            </div>
+            <div id="admin-users-message" class="message"></div>
+            <div id="admin-users" class="admin-users"></div>
+          </section>
         </section>
       </section>
     </main>
@@ -354,8 +371,8 @@
               <input name="tags" type="text" placeholder="如：写意 临摹 待装裱" />
             </label>
             <label>
-              替换图片（可选）
-              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" />
+              追加图像（可选）
+              <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" />
             </label>
             <div class="edit-actions">
               <button type="submit">保存修改</button>
@@ -369,7 +386,7 @@
               <input
                 name="image"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                 multiple
                 required
               />
@@ -437,7 +454,7 @@
               <input
                 name="asset"
                 type="file"
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
               />
             </label>
             <div class="edit-actions">
@@ -452,13 +469,58 @@
               <input
                 name="asset"
                 type="file"
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
                 multiple
                 required
               />
             </label>
             <div class="edit-actions">
               <button type="submit">追加附件</button>
+            </div>
+          </form>
+        </div>
+      </article>
+    </template>
+
+    <template id="admin-user-template">
+      <article class="admin-user-card">
+        <div class="admin-user-main">
+          <div>
+            <strong class="admin-user-name"></strong>
+            <span class="admin-user-username"></span>
+          </div>
+          <span class="admin-user-plan"></span>
+        </div>
+        <div class="admin-user-usage"></div>
+        <button type="button" class="ghost admin-user-open">设置</button>
+        <div class="admin-user-detail hidden">
+          <form class="admin-quota-form">
+            <label>
+              权限
+              <select name="plan">
+                <option value="free">试用</option>
+                <option value="admin">管理员</option>
+              </select>
+            </label>
+            <label>
+              空间(MB)
+              <input name="storageMb" type="number" min="1" step="1" />
+            </label>
+            <label>
+              作品数
+              <input name="paintingLimit" type="number" min="1" step="1" />
+            </label>
+            <label>
+              素材数
+              <input name="materialLimit" type="number" min="1" step="1" />
+            </label>
+            <label class="check-field">
+              <input name="aiEnabled" type="checkbox" />
+              AI
+            </label>
+            <div class="admin-user-actions">
+              <button type="submit">保存额度</button>
+              <button type="button" class="danger admin-delete-user">删除用户</button>
             </div>
           </form>
         </div>
@@ -514,6 +576,6 @@
     </div>
 
     <script src="/file-selection.js"></script>
-    <script src="/app.js?v=20260607-tags"></script>
+    <script src="/app.js?v=20260617-upload-message"></script>
   </body>
 </html>

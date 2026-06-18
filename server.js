@@ -11,11 +11,13 @@ const uploadDir = path.join(__dirname, "uploads");
 const dataDir = path.join(__dirname, "data");
 const dataFile = path.join(dataDir, "paintings.json");
 
-const paintingTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const paintingTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const materialTypes = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
   "video/mp4",
   "video/webm",
   "video/quicktime",
@@ -37,6 +39,19 @@ const DEFAULT_USER_USERNAME = "lulia";
 const DEFAULT_LIST_PAGE_SIZE = 6;
 const MAX_LIST_PAGE_SIZE = 24;
 const MAX_TAGS_PER_ITEM = 12;
+const MB = 1024 * 1024;
+const DEFAULT_FREE_QUOTA = {
+  storageBytes: 200 * MB,
+  paintingLimit: 10,
+  materialLimit: 10,
+  aiEnabled: false,
+};
+const UNLIMITED_QUOTA = {
+  storageBytes: null,
+  paintingLimit: null,
+  materialLimit: null,
+  aiEnabled: true,
+};
 let generatedLegacyPassword = "";
 let legacyPasswordLogged = false;
 
@@ -73,19 +88,19 @@ function createUploader({ allowedTypes, maxFileSize, typeMessage }) {
 const uploadPainting = createUploader({
   allowedTypes: paintingTypes,
   maxFileSize: IMAGE_LIMIT,
-  typeMessage: "Only JPG / PNG / WEBP images are supported",
+  typeMessage: "Only JPG / PNG / WEBP / HEIC / HEIF images are supported",
 });
 
 const uploadMaterial = createUploader({
   allowedTypes: materialTypes,
   maxFileSize: MATERIAL_LIMIT,
-  typeMessage: "Only JPG / PNG / WEBP images and MP4 / WEBM / MOV / MKV videos are supported",
+  typeMessage: "Only JPG / PNG / WEBP / HEIC / HEIF images and MP4 / WEBM / MOV / MKV videos are supported",
 });
 
 const uploadAvatar = createUploader({
   allowedTypes: paintingTypes,
   maxFileSize: AVATAR_LIMIT,
-  typeMessage: "Only JPG / PNG / WEBP avatar images are supported",
+  typeMessage: "Only JPG / PNG / WEBP / HEIC / HEIF avatar images are supported",
 });
 
 function setPublicCacheHeaders(res, filePath) {
@@ -146,9 +161,37 @@ function validatePassword(password) {
   return "";
 }
 
+function parseIntegerEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function getFreeQuota() {
+  return {
+    storageBytes: parseIntegerEnv("FREE_STORAGE_BYTES", DEFAULT_FREE_QUOTA.storageBytes),
+    paintingLimit: parseIntegerEnv("FREE_PAINTING_LIMIT", DEFAULT_FREE_QUOTA.paintingLimit),
+    materialLimit: parseIntegerEnv("FREE_MATERIAL_LIMIT", DEFAULT_FREE_QUOTA.materialLimit),
+    aiEnabled: process.env.FREE_AI_ENABLED === "true",
+  };
+}
+
+function normalizeQuota(value = {}, fallback = getFreeQuota()) {
+  if (fallback === UNLIMITED_QUOTA) {
+    return { ...UNLIMITED_QUOTA };
+  }
+  return {
+    storageBytes: toPositiveInteger(value.storageBytes, fallback.storageBytes),
+    paintingLimit: toPositiveInteger(value.paintingLimit, fallback.paintingLimit),
+    materialLimit: toPositiveInteger(value.materialLimit, fallback.materialLimit),
+    aiEnabled: value.aiEnabled === true,
+  };
+}
+
 function normalizeUserRecord(user = {}) {
   const username = normalizeUsername(user.username);
   const now = new Date().toISOString();
+  const isDefaultUser = username === DEFAULT_USER_USERNAME;
+  const plan = isDefaultUser ? "admin" : trimText(user.plan) || "free";
   return {
     id: Number(user.id),
     username,
@@ -156,6 +199,8 @@ function normalizeUserRecord(user = {}) {
     displayName: trimText(user.displayName) || username,
     bio: trimText(user.bio),
     avatarUrl: trimText(user.avatarUrl),
+    plan,
+    quota: normalizeQuota(user.quota, isDefaultUser ? UNLIMITED_QUOTA : getFreeQuota()),
     createdAt: trimText(user.createdAt) || now,
     updatedAt: trimText(user.updatedAt) || trimText(user.createdAt) || now,
   };
@@ -177,6 +222,8 @@ function createDefaultUser(id) {
     displayName: DEFAULT_USER_USERNAME,
     bio: "",
     avatarUrl: "",
+    plan: "admin",
+    quota: { ...UNLIMITED_QUOTA },
     createdAt: now,
     updatedAt: now,
   };
@@ -249,6 +296,27 @@ async function requireUser(req, res, next) {
     const { user } = findSessionUser(db, req);
     if (!user) {
       return res.status(401).json({ error: "Authentication required" });
+    }
+    req.currentUser = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+function isAdminUser(user) {
+  return user?.username === DEFAULT_USER_USERNAME || user?.plan === "admin";
+}
+
+async function requireAdmin(req, res, next) {
+  try {
+    const db = await readDb();
+    const { user } = findSessionUser(db, req);
+    if (!user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    if (!isAdminUser(user)) {
+      return res.status(403).json({ error: "Admin access required" });
     }
     req.currentUser = user;
     next();
@@ -824,8 +892,14 @@ function renderSharePage({ req, painting }) {
 }
 
 function validateInviteCode(value) {
-  const configuredInviteCode = trimText(process.env.REGISTRATION_INVITE_CODE);
-  if (!configuredInviteCode || trimText(value) !== configuredInviteCode) {
+  const configuredInviteCodes = [
+    ...trimText(process.env.REGISTRATION_INVITE_CODES).split(/[\n,;]+/u),
+    trimText(process.env.REGISTRATION_INVITE_CODE),
+  ]
+    .map((code) => trimText(code))
+    .filter(Boolean);
+
+  if (configuredInviteCodes.length === 0 || !configuredInviteCodes.includes(trimText(value))) {
     return "Invitation code is required";
   }
   return "";
@@ -932,6 +1006,109 @@ async function removeRecordAttachmentFiles(record, legacyField) {
   await Promise.all([...fileUrls].map((url) => removeFileByUrl(url)));
 }
 
+async function getUploadFileSize(fileUrl) {
+  const normalizedUrl = trimText(fileUrl);
+  if (!normalizedUrl.startsWith("/uploads/")) {
+    return 0;
+  }
+  try {
+    const stat = await fs.stat(path.join(uploadDir, path.basename(normalizedUrl)));
+    return stat.size;
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return 0;
+    }
+    throw error;
+  }
+}
+
+async function calculateUserUsage(db, user) {
+  const fileUrls = new Set();
+  const paintings = ownedItems(db.paintings, user);
+  const materials = ownedItems(db.materials, user);
+
+  [...paintings, ...materials].forEach((record) => {
+    getRecordAttachments(record, record.assetUrl === undefined ? "imageUrl" : "assetUrl").forEach((attachment) => {
+      const url = extractAttachmentUrl(attachment);
+      if (url) {
+        fileUrls.add(url);
+      }
+    });
+  });
+
+  const sizes = await Promise.all([...fileUrls].map((url) => getUploadFileSize(url)));
+  return {
+    storageBytes: sizes.reduce((total, size) => total + size, 0),
+    paintingCount: paintings.length,
+    materialCount: materials.length,
+  };
+}
+
+function getUploadedFilesSize(files) {
+  return (Array.isArray(files) ? files : []).reduce((total, file) => total + Number(file?.size || 0), 0);
+}
+
+function getUserQuota(user) {
+  if (isAdminUser(user)) {
+    return { ...UNLIMITED_QUOTA };
+  }
+  return normalizeQuota(user?.quota, getFreeQuota());
+}
+
+async function serializeAdminUser(db, user) {
+  return {
+    ...sanitizeUser(user),
+    quota: getUserQuota(user),
+    usage: await calculateUserUsage(db, user),
+  };
+}
+
+function parseAdminQuota(body = {}, currentQuota = getFreeQuota()) {
+  const quotaInput = body.quota || {};
+  const storageSource = Object.prototype.hasOwnProperty.call(quotaInput, "storageMb")
+    ? Number(quotaInput.storageMb) * MB
+    : quotaInput.storageBytes;
+  return {
+    storageBytes: toPositiveInteger(storageSource, currentQuota.storageBytes),
+    paintingLimit: toPositiveInteger(quotaInput.paintingLimit, currentQuota.paintingLimit),
+    materialLimit: toPositiveInteger(quotaInput.materialLimit, currentQuota.materialLimit),
+    aiEnabled: quotaInput.aiEnabled === true,
+  };
+}
+
+async function removeUserOwnedFiles({ paintings, materials, user }) {
+  const avatarUrl = trimText(user?.avatarUrl);
+  await Promise.all([
+    ...paintings.map((item) => removeRecordAttachmentFiles(item, "imageUrl")),
+    ...materials.map((item) => removeRecordAttachmentFiles(item, "assetUrl")),
+    avatarUrl ? removeFileByUrl(avatarUrl) : Promise.resolve(),
+  ]);
+}
+
+function quotaError({ usage, quota, type, incomingBytes = 0 }) {
+  if (quota.paintingLimit !== null && type === "painting" && usage.paintingCount >= quota.paintingLimit) {
+    return `Free painting quota reached (${quota.paintingLimit})`;
+  }
+  if (quota.materialLimit !== null && type === "material" && usage.materialCount >= quota.materialLimit) {
+    return `Free material quota reached (${quota.materialLimit})`;
+  }
+  if (quota.storageBytes !== null && usage.storageBytes + incomingBytes > quota.storageBytes) {
+    return `Free storage quota reached (${quota.storageBytes} bytes)`;
+  }
+  return "";
+}
+
+async function enforceQuota({ db, user, type, files }) {
+  const usage = await calculateUserUsage(db, user);
+  const error = quotaError({
+    usage,
+    quota: getUserQuota(user),
+    type,
+    incomingBytes: getUploadedFilesSize(files),
+  });
+  return { error, usage };
+}
+
 app.get("/api/auth/me", async (req, res, next) => {
   try {
     const db = await readDb();
@@ -939,7 +1116,7 @@ app.get("/api/auth/me", async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ error: "Authentication required" });
     }
-    res.json({ user: sanitizeUser(user) });
+    res.json({ user: sanitizeUser(user), usage: await calculateUserUsage(db, user) });
   } catch (error) {
     next(error);
   }
@@ -976,6 +1153,8 @@ app.post("/api/auth/register", async (req, res, next) => {
       displayName,
       bio: "",
       avatarUrl: "",
+      plan: "free",
+      quota: getFreeQuota(),
       createdAt: now,
       updatedAt: now,
     };
@@ -1095,6 +1274,92 @@ app.post("/api/profile/password", requireUser, async (req, res, next) => {
   }
 });
 
+app.get("/api/admin/users", requireAdmin, async (_req, res, next) => {
+  try {
+    const db = await readDb();
+    const users = await Promise.all(
+      db.users
+        .slice()
+        .sort((a, b) => a.id - b.id)
+        .map((user) => serializeAdminUser(db, user))
+    );
+    res.json({ users });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/users/:id/quota", requireAdmin, async (req, res, next) => {
+  try {
+    const id = toId(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+
+    const db = await readDb();
+    const user = db.users.find((item) => item.id === id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.username === DEFAULT_USER_USERNAME) {
+      return res.status(400).json({ error: "Cannot alter the protected account" });
+    }
+
+    const plan = trimText(req.body.plan || user.plan || "free").toLowerCase();
+    if (plan !== "free" && plan !== "admin") {
+      return res.status(400).json({ error: "Plan must be free or admin" });
+    }
+
+    user.plan = plan;
+    user.quota = plan === "admin" ? { ...UNLIMITED_QUOTA } : parseAdminQuota(req.body, getUserQuota(user));
+    user.updatedAt = new Date().toISOString();
+    await writeDb(db);
+    res.json({ user: await serializeAdminUser(db, user) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/users/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const id = toId(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+    if (id === req.currentUser.id) {
+      return res.status(400).json({ error: "Cannot delete the current admin account" });
+    }
+
+    const db = await readDb();
+    const index = db.users.findIndex((user) => user.id === id);
+    if (index < 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    const user = db.users[index];
+    if (user.username === DEFAULT_USER_USERNAME) {
+      return res.status(400).json({ error: "Cannot delete the protected account" });
+    }
+
+    const deletedPaintings = db.paintings.filter((item) => belongsToUser(item, user));
+    const deletedMaterials = db.materials.filter((item) => belongsToUser(item, user));
+    db.users.splice(index, 1);
+    db.paintings = db.paintings.filter((item) => !belongsToUser(item, user));
+    db.materials = db.materials.filter((item) => !belongsToUser(item, user));
+    db.sessions = db.sessions.filter((session) => session.userId !== user.id);
+    await writeDb(db);
+    await removeUserOwnedFiles({ paintings: deletedPaintings, materials: deletedMaterials, user });
+
+    res.json({
+      success: true,
+      id,
+      deletedPaintings: deletedPaintings.length,
+      deletedMaterials: deletedMaterials.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/paintings", requireUser, async (req, res, next) => {
   try {
     const category = trimText(req.query.category).toLowerCase();
@@ -1194,6 +1459,12 @@ app.post("/api/paintings", requireUser, uploadPainting.array("image", MAX_UPLOAD
     const attachments = files.map((file) => buildPaintingAttachmentFromFile(file)).filter(Boolean);
 
     const db = await readDb();
+    const quota = await enforceQuota({ db, user: req.currentUser, type: "painting", files });
+    if (quota.error) {
+      await removeUploadedFiles(files);
+      return res.status(403).json({ error: quota.error });
+    }
+
     const newItem = {
       id: db.paintingLastId + 1,
       title,
@@ -1326,6 +1597,11 @@ app.post("/api/paintings/:id/attachments", requireUser, uploadPainting.array("im
     if (!painting) {
       await removeUploadedFiles(files);
       return res.status(404).json({ error: "Painting not found" });
+    }
+    const quota = await enforceQuota({ db, user: req.currentUser, type: "attachment", files });
+    if (quota.error) {
+      await removeUploadedFiles(files);
+      return res.status(403).json({ error: quota.error });
     }
 
     const newAttachments = files.map((file) => buildPaintingAttachmentFromFile(file)).filter(Boolean);
@@ -1549,6 +1825,12 @@ app.post("/api/materials", requireUser, uploadMaterial.array("asset", MAX_UPLOAD
     const attachments = files.map((file) => buildMaterialAttachmentFromFile(file)).filter(Boolean);
 
     const db = await readDb();
+    const quota = await enforceQuota({ db, user: req.currentUser, type: "material", files });
+    if (quota.error) {
+      await removeUploadedFiles(files);
+      return res.status(403).json({ error: quota.error });
+    }
+
     const newItem = {
       id: db.materialLastId + 1,
       title,
@@ -1648,6 +1930,11 @@ app.post("/api/materials/:id/attachments", requireUser, uploadMaterial.array("as
     if (!material) {
       await removeUploadedFiles(files);
       return res.status(404).json({ error: "Material not found" });
+    }
+    const quota = await enforceQuota({ db, user: req.currentUser, type: "attachment", files });
+    if (quota.error) {
+      await removeUploadedFiles(files);
+      return res.status(403).json({ error: quota.error });
     }
 
     const newAttachments = files.map((file) => buildMaterialAttachmentFromFile(file)).filter(Boolean);

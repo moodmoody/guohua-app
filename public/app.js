@@ -13,6 +13,7 @@ const currentUserAvatar = document.getElementById("current-user-avatar");
 const currentUserName = document.getElementById("current-user-name");
 const currentUserUsername = document.getElementById("current-user-username");
 const currentUserBio = document.getElementById("current-user-bio");
+const membershipSummary = document.getElementById("membership-summary");
 
 const uploadForm = document.getElementById("upload-form");
 const filterCategory = document.getElementById("filter-category");
@@ -21,6 +22,7 @@ const searchBtn = document.getElementById("search-btn");
 const resetBtn = document.getElementById("reset-btn");
 const paintingsRoot = document.getElementById("paintings");
 const messageEl = document.getElementById("message");
+const uploadMessageEl = document.getElementById("upload-message");
 const paintingTemplate = document.getElementById("painting-template");
 const paintingTagStrip = document.getElementById("painting-tag-strip");
 const pagination = document.getElementById("pagination");
@@ -67,7 +69,13 @@ const profileForm = document.getElementById("profile-form");
 const avatarForm = document.getElementById("avatar-form");
 const passwordForm = document.getElementById("password-form");
 const profileMessage = document.getElementById("profile-message");
+const adminUserManagement = document.getElementById("admin-user-management");
+const adminUsersRoot = document.getElementById("admin-users");
+const adminUsersMessage = document.getElementById("admin-users-message");
+const adminUsersRefresh = document.getElementById("admin-users-refresh");
+const adminUserTemplate = document.getElementById("admin-user-template");
 let currentUser = null;
+let currentUsage = null;
 let lightboxState = {
   attachments: [],
   index: 0,
@@ -104,6 +112,8 @@ const materialState = {
   selectedTag: "",
 };
 
+const IMAGE_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
+
 function formatTime(iso) {
   return new Date(iso).toLocaleString("zh-CN", { hour12: false });
 }
@@ -114,6 +124,66 @@ function setMessage(target, text, isError = false) {
   }
   target.textContent = text;
   target.style.color = isError ? "#8b1d1d" : "#7a6f63";
+}
+
+function setUploadMessage(text, isError = false) {
+  setMessage(uploadMessageEl, text, isError);
+  if (text && isError && uploadMessageEl) {
+    uploadMessageEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function paintingImageLimitMessage(files) {
+  const oversized = (Array.isArray(files) ? files : []).find((file) => Number(file?.size || 0) > IMAGE_UPLOAD_LIMIT_BYTES);
+  if (!oversized) {
+    return "";
+  }
+  return `图片不能超过 10M，请压缩后再上传：${oversized.name || "所选图片"}`;
+}
+
+function friendlyErrorMessage(message) {
+  if (message === "Image file must be <= 10MB") {
+    return "图片不能超过 10M，请压缩后再上传";
+  }
+  return message;
+}
+
+function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined) {
+    return "不限";
+  }
+  const value = Number(bytes || 0);
+  if (value >= 1024 * 1024) {
+    return `${Math.round(value / 1024 / 1024)}M`;
+  }
+  if (value >= 1024) {
+    return `${Math.round(value / 1024)}K`;
+  }
+  return `${value}B`;
+}
+
+function formatLimit(value) {
+  return value === null || value === undefined ? "不限" : value;
+}
+
+function isAdminUser(user) {
+  return user?.username === "lulia" || user?.plan === "admin";
+}
+
+function renderAdminAccess(user) {
+  const isAdmin = isAdminUser(user);
+  if (adminUserManagement) {
+    adminUserManagement.classList.toggle("hidden", !isAdmin);
+  }
+}
+
+function getVisibleUsage() {
+  const usage = currentUsage || {};
+  return {
+    storageBytes: usage.storageBytes,
+    paintingCount: Math.max(Number(usage.paintingCount || 0), Number(paintingState.total || 0)),
+    materialCount: Math.max(Number(usage.materialCount || 0), Number(materialState.total || 0)),
+  };
 }
 
 function showLoginView(message = "", isError = false) {
@@ -146,8 +216,29 @@ function renderCurrentUser(user) {
   currentUserAvatar.alt = displayName ? `${displayName}头像` : "";
   currentUserAvatar.classList.toggle("empty", !user?.avatarUrl);
   currentUserAvatar.classList.toggle("previewable", Boolean(user?.avatarUrl));
+  if (membershipSummary) {
+    const quota = user?.quota || {};
+    const usage = getVisibleUsage();
+    if (user?.plan === "admin" || user?.username === "lulia") {
+      membershipSummary.textContent = [
+        `空间 ${formatBytes(usage.storageBytes)}`,
+        `作品 ${usage.paintingCount || 0}`,
+        `素材 ${usage.materialCount || 0}`,
+      ].join(" · ");
+    } else {
+      membershipSummary.textContent = [
+        user?.plan === "free" ? "免费版" : user?.plan || "会员",
+        `空间 ${formatBytes(usage.storageBytes)} / ${formatBytes(quota.storageBytes)}`,
+        `作品 ${usage.paintingCount || 0}/${formatLimit(quota.paintingLimit)}`,
+        `素材 ${usage.materialCount || 0}/${formatLimit(quota.materialLimit)}`,
+      ].join(" · ");
+    }
+  }
   profileForm.elements.displayName.value = displayName;
   profileForm.elements.bio.value = user?.bio || "";
+  if (adminUserManagement) {
+    adminUserManagement.classList.toggle("hidden", !isAdminUser(currentUser));
+  }
 }
 
 async function loadAppData() {
@@ -159,10 +250,14 @@ async function loadAppData() {
     loadMaterialTags(),
     loadMaterials({ resetPage: true }),
   ]);
+  if (isAdminUser(currentUser)) {
+    await loadAdminUsers();
+  }
 }
 
 function showAuth() {
   currentUser = null;
+  currentUsage = null;
   authScreen.classList.remove("hidden");
   appShell.classList.add("hidden");
   showLoginView();
@@ -180,8 +275,138 @@ function showAuth() {
   materialState.selectedTag = "";
   paintingsRoot.innerHTML = "";
   materialsRoot.innerHTML = "";
+  if (adminUsersRoot) {
+    adminUsersRoot.innerHTML = "";
+  }
+  renderAdminAccess(null);
   renderPaintingTagStrip();
   renderMaterialTagStrip();
+}
+
+function quotaMb(quota = {}) {
+  return quota.storageBytes === null || quota.storageBytes === undefined
+    ? ""
+    : Math.round(Number(quota.storageBytes || 0) / 1024 / 1024);
+}
+
+function closeOtherAdminUserDetails(currentCard) {
+  if (!adminUsersRoot) {
+    return;
+  }
+  adminUsersRoot.querySelectorAll(".admin-user-card").forEach((card) => {
+    if (card === currentCard) {
+      return;
+    }
+    card.querySelector(".admin-user-detail")?.classList.add("hidden");
+    const button = card.querySelector(".admin-user-open");
+    if (button) {
+      button.textContent = "设置";
+      button.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
+function renderAdminUsers(users = []) {
+  if (!adminUsersRoot || !adminUserTemplate) {
+    return;
+  }
+  const manageableUsers = users.filter((user) => user.username !== "lulia" && user.id !== currentUser?.id);
+  adminUsersRoot.innerHTML = "";
+  if (!manageableUsers.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "暂无其他用户";
+    adminUsersRoot.appendChild(empty);
+    return;
+  }
+
+  manageableUsers.forEach((user) => {
+    const fragment = adminUserTemplate.content.cloneNode(true);
+    const card = fragment.querySelector(".admin-user-card");
+    const form = fragment.querySelector(".admin-quota-form");
+    const detail = fragment.querySelector(".admin-user-detail");
+    const openButton = fragment.querySelector(".admin-user-open");
+    const quota = user.quota || {};
+    const usage = user.usage || {};
+    const protectedUser = user.username === "lulia" || user.id === currentUser?.id;
+
+    card.dataset.userId = user.id;
+    fragment.querySelector(".admin-user-name").textContent = user.displayName || user.username;
+    fragment.querySelector(".admin-user-username").textContent = `@${user.username}`;
+    fragment.querySelector(".admin-user-plan").textContent = user.plan === "admin" ? "管理员" : "试用";
+    fragment.querySelector(".admin-user-usage").textContent = [
+      `空间 ${formatBytes(usage.storageBytes)} / ${formatBytes(quota.storageBytes)}`,
+      `作品 ${usage.paintingCount || 0}/${formatLimit(quota.paintingLimit)}`,
+      `素材 ${usage.materialCount || 0}/${formatLimit(quota.materialLimit)}`,
+    ].join(" · ");
+
+    form.elements.plan.value = user.plan === "admin" ? "admin" : "free";
+    form.elements.storageMb.value = quotaMb(quota);
+    form.elements.paintingLimit.value = quota.paintingLimit ?? "";
+    form.elements.materialLimit.value = quota.materialLimit ?? "";
+    form.elements.aiEnabled.checked = quota.aiEnabled === true;
+    form.querySelector(".admin-delete-user").disabled = protectedUser;
+    openButton.setAttribute("aria-expanded", "false");
+
+    openButton.addEventListener("click", () => {
+      const willOpen = detail.classList.contains("hidden");
+      closeOtherAdminUserDetails(card);
+      detail.classList.toggle("hidden", !willOpen);
+      openButton.textContent = willOpen ? "收起" : "设置";
+      openButton.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await fetchJson(`/api/admin/users/${user.id}/quota`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            plan: form.elements.plan.value,
+            quota: {
+              storageMb: form.elements.storageMb.value,
+              paintingLimit: form.elements.paintingLimit.value,
+              materialLimit: form.elements.materialLimit.value,
+              aiEnabled: form.elements.aiEnabled.checked,
+            },
+          }),
+        });
+        setMessage(adminUsersMessage, "用户额度已保存");
+        await loadAdminUsers();
+      } catch (error) {
+        setMessage(adminUsersMessage, error.message, true);
+      }
+    });
+
+    form.querySelector(".admin-delete-user").addEventListener("click", async () => {
+      const ok = window.confirm(`确定删除用户 @${user.username} 吗？该用户的作品和素材也会被删除。`);
+      if (!ok) {
+        return;
+      }
+      try {
+        await fetchJson(`/api/admin/users/${user.id}`, { method: "DELETE" });
+        setMessage(adminUsersMessage, "用户已删除");
+        await loadAdminUsers();
+      } catch (error) {
+        setMessage(adminUsersMessage, error.message, true);
+      }
+    });
+
+    adminUsersRoot.appendChild(fragment);
+  });
+}
+
+async function loadAdminUsers() {
+  if (!isAdminUser(currentUser) || !adminUsersRoot) {
+    return;
+  }
+  try {
+    const payload = await fetchJson("/api/admin/users");
+    renderAdminUsers(payload.users || []);
+  } catch (error) {
+    setMessage(adminUsersMessage, error.message, true);
+  }
 }
 
 async function showApp(user) {
@@ -192,10 +417,23 @@ async function showApp(user) {
   await loadAppData();
 }
 
+async function refreshMembershipSummary() {
+  if (!currentUser) {
+    return;
+  }
+  try {
+    const payload = await fetchJson("/api/auth/me");
+    currentUsage = payload.usage || null;
+    renderCurrentUser(payload.user);
+  } catch (_error) {}
+}
+
 async function initializeAuth() {
   try {
     const payload = await fetchJson("/api/auth/me");
+    currentUsage = payload.usage || null;
     await showApp(payload.user);
+    await refreshMembershipSummary();
   } catch (_error) {
     showAuth();
   }
@@ -1017,6 +1255,7 @@ function renderPaintings() {
             });
             setMessage(messageEl, "作品附件已删除");
             await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
+            await refreshMembershipSummary();
           } catch (error) {
             setMessage(messageEl, error.message, true);
           }
@@ -1134,6 +1373,12 @@ function renderPaintings() {
         description: editForm.elements.description.value.trim(),
         tags: editForm.elements.tags.value,
       };
+      const editFiles = Array.from(editForm.elements.image.files || []);
+      const editLimitMessage = paintingImageLimitMessage(editFiles);
+      if (editLimitMessage) {
+        setMessage(messageEl, editLimitMessage, true);
+        return;
+      }
 
       try {
         await fetchJson(`/api/paintings/${item.id}`, {
@@ -1141,12 +1386,23 @@ function renderPaintings() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        setMessage(messageEl, "作品已更新");
+        if (editFiles.length) {
+          const editFormData = new FormData();
+          editFiles.forEach((file) => {
+            editFormData.append("image", file);
+          });
+          await fetchJson(`/api/paintings/${item.id}/attachments`, {
+            method: "POST",
+            body: editFormData,
+          });
+        }
+        setMessage(messageEl, editFiles.length ? "作品已更新，附件已追加" : "作品已更新");
         editForm.classList.add("hidden");
         resetFilePickers(editForm);
         await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
+        await refreshMembershipSummary();
       } catch (error) {
-        setMessage(messageEl, error.message, true);
+        setMessage(messageEl, friendlyErrorMessage(error.message), true);
       }
     });
 
@@ -1154,6 +1410,11 @@ function renderPaintings() {
       event.preventDefault();
       const files = Array.from(appendForm.elements.image.files || []);
       if (!files.length) {
+        return;
+      }
+      const appendLimitMessage = paintingImageLimitMessage(files);
+      if (appendLimitMessage) {
+        setMessage(messageEl, appendLimitMessage, true);
         return;
       }
 
@@ -1171,8 +1432,9 @@ function renderPaintings() {
         resetFilePickers(appendForm);
         setMessage(messageEl, "作品附件已追加");
         await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
+        await refreshMembershipSummary();
       } catch (error) {
-        setMessage(messageEl, error.message, true);
+        setMessage(messageEl, friendlyErrorMessage(error.message), true);
       }
     });
 
@@ -1248,6 +1510,9 @@ async function loadPaintings({ resetPage = false } = {}) {
   const url = buildPaintingQuery();
   applyListPayload(paintingState, await fetchJson(url));
   renderPaintings();
+  if (currentUser) {
+    renderCurrentUser(currentUser);
+  }
 }
 
 function materialTypeOf(item) {
@@ -1406,6 +1671,7 @@ function renderMaterials() {
             });
             setMessage(materialMessageEl, "素材附件已删除");
             await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
+            await refreshMembershipSummary();
           } catch (error) {
             setMessage(materialMessageEl, error.message, true);
           }
@@ -1507,6 +1773,7 @@ function renderMaterials() {
         editForm.classList.add("hidden");
         resetFilePickers(editForm);
         await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
+        await refreshMembershipSummary();
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
       }
@@ -1533,6 +1800,7 @@ function renderMaterials() {
         resetFilePickers(appendForm);
         setMessage(materialMessageEl, "素材附件已追加");
         await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
+        await refreshMembershipSummary();
       } catch (error) {
         setMessage(materialMessageEl, error.message, true);
       }
@@ -1588,6 +1856,9 @@ async function loadMaterials({ resetPage = false } = {}) {
   const url = buildMaterialQuery();
   applyListPayload(materialState, await fetchJson(url));
   renderMaterials();
+  if (currentUser) {
+    renderCurrentUser(currentUser);
+  }
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -1701,6 +1972,12 @@ passwordForm.addEventListener("submit", async (event) => {
   }
 });
 
+if (adminUsersRefresh) {
+  adminUsersRefresh.addEventListener("click", async () => {
+    await loadAdminUsers();
+  });
+}
+
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
     activateTab(button.dataset.tabTarget);
@@ -1710,6 +1987,11 @@ tabButtons.forEach((button) => {
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(uploadForm);
+  const imageLimitMessage = paintingImageLimitMessage(Array.from(uploadForm.elements.image.files || []));
+  if (imageLimitMessage) {
+    setUploadMessage(imageLimitMessage, true);
+    return;
+  }
   formData.delete("tags");
   formData.append("tags", uploadForm.elements.tags.value.trim());
 
@@ -1720,10 +2002,11 @@ uploadForm.addEventListener("submit", async (event) => {
     });
     uploadForm.reset();
     resetFilePickers(uploadForm);
-    setMessage(messageEl, "作品已收入册");
+    setUploadMessage("作品已收入册");
     await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings({ resetPage: true })]);
+    await refreshMembershipSummary();
   } catch (error) {
-    setMessage(messageEl, error.message, true);
+    setUploadMessage(friendlyErrorMessage(error.message), true);
   }
 });
 
@@ -1771,6 +2054,7 @@ materialUploadForm.addEventListener("submit", async (event) => {
     resetFilePickers(materialUploadForm);
     setMessage(materialMessageEl, "素材已收入库");
     await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials({ resetPage: true })]);
+    await refreshMembershipSummary();
   } catch (error) {
     setMessage(materialMessageEl, error.message, true);
   }

@@ -63,7 +63,7 @@ async function createTempStorage(initialData = null) {
   return { tempRoot, uploadDir, dataFile, shimFile };
 }
 
-function startServer(port, storage) {
+function startServer(port, storage, envOverrides = {}) {
   const child = spawn(process.execPath, ["--require", storage.shimFile, "server.js"], {
     cwd: process.cwd(),
     env: {
@@ -74,6 +74,7 @@ function startServer(port, storage) {
       DATA_FILE: storage.dataFile,
       LEGACY_USER_PASSWORD: "lulia-pass-123",
       REGISTRATION_INVITE_CODE: TEST_INVITE_CODE,
+      ...envOverrides,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -116,10 +117,10 @@ function startServer(port, storage) {
   };
 }
 
-async function startFixture(initialData = null) {
+async function startFixture(initialData = null, envOverrides = {}) {
   const port = await getFreePort();
   const storage = await createTempStorage(initialData);
-  const server = startServer(port, storage);
+  const server = startServer(port, storage, envOverrides);
   await server.waitUntilReady();
   return { baseUrl: `http://127.0.0.1:${port}`, storage, server };
 }
