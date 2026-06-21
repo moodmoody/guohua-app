@@ -47,9 +47,9 @@ test("manifest and service worker provide mobile app basics", async () => {
     )
   );
 
-  assert.match(sw, /guohua-app-shell-v20260617-upload-message/);
-  assert.match(sw, /\/style\.css\?v=20260617-upload-message/);
-  assert.match(sw, /\/app\.js\?v=20260617-upload-message/);
+  assert.match(sw, /guohua-app-shell-v20260621-home-antique-seal/);
+  assert.match(sw, /\/style\.css\?v=20260621-home-antique-seal/);
+  assert.match(sw, /\/app\.js\?v=20260621-home-antique-seal/);
   assert.match(sw, /\/offline\.html/);
   assert.match(sw, /self\.addEventListener\("fetch"/);
   assert.match(offline, /墨舞丹青/);

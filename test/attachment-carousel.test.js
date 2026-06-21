@@ -22,6 +22,21 @@ test("multi-attachment preview exposes carousel controls and swipe behavior", as
   assert.match(css, /\.attachment-status\s*\{/);
 });
 
+test("attachment strip summarizes file count instead of rendering per-file buttons", async () => {
+  const [app, css] = await Promise.all([
+    fs.readFile("public/app.js", "utf8"),
+    fs.readFile("public/style.css", "utf8"),
+  ]);
+
+  assert.match(app, /attachment-count/);
+  assert.match(app, /共 \$\{attachments\.length\} 个文件/);
+  assert.doesNotMatch(app, /attachment-chip/);
+  assert.doesNotMatch(app, /attachment-remove/);
+  assert.doesNotMatch(app, /onSelect:\s*\(nextIndex\)/);
+  assert.doesNotMatch(css, /\.attachment-chip/);
+  assert.doesNotMatch(css, /\.attachment-remove/);
+});
+
 test("opened attachment preview supports grouped lightbox navigation", async () => {
   const [html, app, css] = await Promise.all([
     fs.readFile("public/index.html", "utf8"),

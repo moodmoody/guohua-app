@@ -10,7 +10,7 @@ test("painting uploads show a visible reason before sending images over 10MB", a
   assert.match(app, /图片不能超过 10M，请压缩后再上传/);
   assert.match(app, /const imageLimitMessage = paintingImageLimitMessage\(Array\.from\(uploadForm\.elements\.image\.files \|\| \[\]\)\)/);
   assert.match(app, /const editLimitMessage = paintingImageLimitMessage\(editFiles\)/);
-  assert.match(app, /const appendLimitMessage = paintingImageLimitMessage\(files\)/);
+  assert.doesNotMatch(app, /const appendLimitMessage = paintingImageLimitMessage\(files\)/);
   assert.match(app, /friendlyErrorMessage\(error\.message\)/);
   assert.match(app, /Image file must be <= 10MB/);
 });

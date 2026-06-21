@@ -1,9 +1,9 @@
-const CACHE_NAME = "guohua-app-shell-v20260617-upload-message";
+const CACHE_NAME = "guohua-app-shell-v20260621-home-antique-seal";
 const APP_SHELL = [
   "/",
   "/offline.html",
-  "/style.css?v=20260617-upload-message",
-  "/app.js?v=20260617-upload-message",
+  "/style.css?v=20260621-home-antique-seal",
+  "/app.js?v=20260621-home-antique-seal",
   "/file-selection.js",
   "/manifest.webmanifest",
   "/assets/app-icon.png",

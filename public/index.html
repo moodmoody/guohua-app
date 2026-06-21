@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/assets/app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/assets/app-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=20260617-upload-message" />
+    <link rel="stylesheet" href="/style.css?v=20260621-home-antique-seal" />
   </head>
   <body>
     <section id="auth-screen" class="auth-screen">
@@ -86,60 +86,134 @@
       </div>
     </section>
 
-    <main id="app-shell" class="container hidden">
-      <header class="header">
-        <div class="header-copy">
-          <span class="eyebrow">画事案卷</span>
-          <div class="title-row">
-            <h1>墨舞丹青</h1>
-            <span class="ink-mark" aria-hidden="true"></span>
+    <main id="app-shell" class="app-shell hidden">
+      <div class="app-layout">
+        <aside class="app-sidebar" aria-label="主导航">
+          <div class="sidebar-brand">
+            <strong>墨舞丹青</strong>
+            <span>国画作品档案馆</span>
           </div>
-          <p>以墨舞丹青的意趣整理作品、素材与题跋，让每一幅画作的笔墨、来源和评语都有清楚归处。</p>
-        </div>
-        <div class="user-summary">
-          <img id="current-user-avatar" class="user-avatar" alt="" />
-          <div>
-            <strong id="current-user-name"></strong>
-            <span id="current-user-username"></span>
-            <span id="current-user-bio" class="user-bio"></span>
-            <span id="membership-summary" class="membership-summary"></span>
+          <nav class="tabs sidebar-nav" aria-label="功能分区">
+            <span class="sidebar-section">总览</span>
+            <button
+              id="tab-btn-home"
+              class="tab-btn active"
+              type="button"
+              data-tab-target="home"
+            >
+              <span aria-hidden="true">⌂</span>
+              首页
+            </button>
+
+            <span class="sidebar-section">作品管理</span>
+            <button
+              id="tab-btn-paintings"
+              class="tab-btn"
+              type="button"
+              data-tab-target="paintings"
+            >
+              <span aria-hidden="true">画</span>
+              作品总览
+            </button>
+            <button class="sidebar-sub-link" type="button" data-scroll-target="upload-form" data-tab-target="paintings">
+              <span aria-hidden="true">＋</span>
+              作品入藏
+            </button>
+            <button class="sidebar-sub-link" type="button" data-scroll-target="paintings" data-tab-target="paintings">
+              <span aria-hidden="true">☆</span>
+              收藏夹
+            </button>
+
+            <span class="sidebar-section">素材管理</span>
+            <button
+              id="tab-btn-materials"
+              class="tab-btn"
+              type="button"
+              data-tab-target="materials"
+            >
+              <span aria-hidden="true">▧</span>
+              素材总览
+            </button>
+            <button class="sidebar-sub-link" type="button" data-scroll-target="material-upload-form" data-tab-target="materials">
+              <span aria-hidden="true">◇</span>
+              素材分类
+            </button>
+
+            <span class="sidebar-section">个人资料</span>
+            <button
+              id="tab-btn-profile"
+              class="tab-btn"
+              type="button"
+              data-tab-target="profile"
+            >
+              <span aria-hidden="true">◎</span>
+              我的案卷
+            </button>
+          </nav>
+          <div class="sidebar-footer">
+            <span class="seal">丹青</span>
+            <span>© 2026 guohua-app</span>
           </div>
-          <button id="logout-btn" type="button" class="ghost">退出</button>
-        </div>
-      </header>
+        </aside>
 
-      <nav class="tabs" aria-label="功能分区">
-        <button
-          id="tab-btn-paintings"
-          class="tab-btn active"
-          type="button"
-          data-tab-target="paintings"
-        >
-          作品管理
-        </button>
-        <button
-          id="tab-btn-materials"
-          class="tab-btn"
-          type="button"
-          data-tab-target="materials"
-        >
-          素材管理
-        </button>
-        <button
-          id="tab-btn-profile"
-          class="tab-btn"
-          type="button"
-          data-tab-target="profile"
-        >
-          个人资料
-        </button>
-      </nav>
+        <section class="app-main">
+          <header class="topbar">
+            <div class="user-summary">
+              <img id="current-user-avatar" class="user-avatar" alt="" />
+              <div>
+                <strong id="current-user-name"></strong>
+                <span id="current-user-username"></span>
+                <span id="current-user-bio" class="user-bio"></span>
+                <span id="membership-summary" class="membership-summary"></span>
+              </div>
+              <button id="logout-btn" type="button" class="ghost">退出</button>
+            </div>
+          </header>
 
-      <section id="tab-pane-paintings" class="tab-pane active" data-tab-pane="paintings">
-        <section class="panel">
-          <h2>作品入藏</h2>
-          <form id="upload-form">
-            <div class="grid">
+          <section id="tab-pane-home" class="tab-pane active" data-tab-pane="home">
+            <section class="home-minimal">
+              <div class="home-focus">
+                <span class="home-kicker">墨舞丹青</span>
+                <div class="home-title-row">
+                  <h2>一卷收好丹青</h2>
+                  <span class="home-seal" aria-hidden="true">藏</span>
+                </div>
+                <p class="home-intro">为国画作品、素材、题跋与评语建立一处安静的数字案卷，让创作、收藏和日后检索都有清楚归处。</p>
+                <div class="home-notes" aria-label="产品说明">
+                  <p><strong>当前试用</strong>200M 空间，最多 10 个作品和 10 个素材。</p>
+                  <p><strong>即将扩展</strong>更大容量、更多作品素材额度、AI 赏析与创作检索。</p>
+                  <p><strong>长期方向</strong>把个人国画档案沉淀成可追溯、可分享、可辅助创作的私藏库。</p>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section id="tab-pane-paintings" class="tab-pane" data-tab-pane="paintings">
+            <div class="paintings-workbench">
+        <section class="panel upload-panel">
+          <form id="upload-form" class="upload-hero-card">
+            <div class="upload-card-head">
+              <h2>作品入藏</h2>
+              <p>上传国画作品，建立数字档案。</p>
+            </div>
+
+            <div class="upload-dropzone">
+              <span class="upload-cloud" aria-hidden="true">⇧</span>
+              <strong>点击上传或拖拽文件</strong>
+              <span>支持 JPG / PNG / WEBP / HEIC</span>
+              <small>单文件大小上限 10M</small>
+              <label class="upload-file-trigger">
+                选择文件
+                <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple required />
+              </label>
+            </div>
+
+            <div class="upload-limit-note">
+              <span aria-hidden="true">⊕</span>
+              单文件大小上限 10M
+            </div>
+
+            <div class="upload-details">
               <label>
                 作品题名
                 <input name="title" type="text" placeholder="如：溪山清远图" required />
@@ -157,25 +231,21 @@
                 标签
                 <input name="tags" type="text" placeholder="如：写意 临摹 待装裱" />
               </label>
+              <label class="upload-description-field">
+                题跋简介
+                <textarea
+                  name="description"
+                  rows="3"
+                  placeholder="可写技法、创作时间、灵感来源等"
+                ></textarea>
+              </label>
             </div>
-            <label>
-              题跋简介
-              <textarea
-                name="description"
-                rows="3"
-                placeholder="可写技法、创作时间、灵感来源等"
-              ></textarea>
-            </label>
-            <label>
-              作品图像
-              <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple required />
-            </label>
-            <button type="submit">收入作品册</button>
+            <button type="submit" class="upload-submit">收入作品册</button>
             <div id="upload-message" class="message"></div>
           </form>
         </section>
 
-        <section class="panel">
+        <section class="panel gallery-panel">
           <h2>作品册</h2>
           <div class="toolbar">
             <label>
@@ -202,13 +272,40 @@
             <button id="next-page-btn" type="button" class="ghost">下一页</button>
           </div>
         </section>
+            </div>
       </section>
 
-      <section id="tab-pane-materials" class="tab-pane" data-tab-pane="materials">
-        <section class="panel">
-          <h2>素材入库</h2>
-          <form id="material-upload-form">
-            <div class="grid">
+          <section id="tab-pane-materials" class="tab-pane" data-tab-pane="materials">
+        <section class="panel upload-panel">
+          <form id="material-upload-form" class="upload-hero-card material-upload-card">
+            <div class="upload-card-head">
+              <h2>素材入库</h2>
+              <p>收纳参考图、过程视频与临摹资料，建立可检索的素材档案。</p>
+            </div>
+
+            <div class="upload-dropzone">
+              <span class="upload-cloud" aria-hidden="true">⇧</span>
+              <strong>点击上传或拖拽素材文件</strong>
+              <span>支持图片 / 视频</span>
+              <small>单文件大小上限 100MB</small>
+              <label class="upload-file-trigger">
+                选择文件
+                <input
+                  name="asset"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
+                  required
+                />
+              </label>
+            </div>
+
+            <div class="upload-limit-note">
+              <span aria-hidden="true">⊕</span>
+              图片与视频素材均可归档，单文件大小上限 100MB
+            </div>
+
+            <div class="upload-details">
               <label>
                 素材题名
                 <input name="title" type="text" placeholder="如：石纹参考 / 水墨过程片段" required />
@@ -226,8 +323,7 @@
                 标签
                 <input name="tags" type="text" placeholder="如：皴法 纹理 课程" />
               </label>
-            </div>
-            <label>
+              <label class="upload-description-field">
               素材说明
               <textarea
                 name="description"
@@ -235,21 +331,12 @@
                 placeholder="记录素材来源、用途、要点说明等"
               ></textarea>
             </label>
-            <label>
-              文件（图片或视频，素材最大 100MB）
-              <input
-                name="asset"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
-                required
-              />
-            </label>
-            <button type="submit">收入素材库</button>
+            </div>
+            <button type="submit" class="upload-submit">收入素材库</button>
           </form>
         </section>
 
-        <section class="panel">
+        <section class="panel gallery-panel">
           <h2>素材库</h2>
           <div class="toolbar">
             <label>
@@ -278,7 +365,7 @@
         </section>
       </section>
 
-      <section id="tab-pane-profile" class="tab-pane" data-tab-pane="profile">
+          <section id="tab-pane-profile" class="tab-pane" data-tab-pane="profile">
         <section class="panel profile-panel">
           <h2>个人资料</h2>
           <div class="profile-layout">
@@ -325,7 +412,32 @@
             <div id="admin-users" class="admin-users"></div>
           </section>
         </section>
-      </section>
+          </section>
+        </section>
+      </div>
+
+      <nav class="mobile-bottom-nav" aria-label="手机导航">
+        <button class="mobile-nav-btn tab-btn active" type="button" data-tab-target="home">
+          <span aria-hidden="true">⌂</span>
+          首页
+        </button>
+        <button class="mobile-nav-btn tab-btn" type="button" data-tab-target="paintings">
+          <span aria-hidden="true">画</span>
+          作品
+        </button>
+        <button class="mobile-nav-btn mobile-nav-primary mobile-nav-action" type="button" data-tab-target="paintings" data-scroll-target="upload-form">
+          <span aria-hidden="true">＋</span>
+          入藏
+        </button>
+        <button class="mobile-nav-btn tab-btn" type="button" data-tab-target="materials">
+          <span aria-hidden="true">材</span>
+          素材
+        </button>
+        <button class="mobile-nav-btn tab-btn" type="button" data-tab-target="profile">
+          <span aria-hidden="true">◎</span>
+          我的
+        </button>
+      </nav>
     </main>
 
     <template id="painting-template">
@@ -340,10 +452,12 @@
         </div>
         <div class="attachment-strip painting-attachments"></div>
         <div class="card-content">
-          <h3 class="painting-title"></h3>
+          <div class="card-heading">
+            <h3 class="painting-title"></h3>
+            <div class="tag-list card-meta-tags painting-tags painting-meta-tags"></div>
+          </div>
           <p class="meta"></p>
           <p class="description"></p>
-          <div class="tag-list painting-tags"></div>
 
               <div class="card-actions">
                 <button type="button" class="share-btn">分享</button>
@@ -380,30 +494,14 @@
             </div>
           </form>
 
-          <form class="append-attachment-form">
-            <label>
-              追加图像
-              <input
-                name="image"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                multiple
-                required
-              />
-            </label>
-            <div class="edit-actions">
-              <button type="submit">追加附件</button>
-            </div>
+        </div>
+        <div class="comments">
+          <h4>评语</h4>
+          <ul class="comment-list"></ul>
+          <form class="comment-form">
+            <input name="comment" type="text" placeholder="写下鉴赏、修订或展陈备注" required />
+            <button type="submit">添评</button>
           </form>
-
-          <div class="comments">
-            <h4>评语</h4>
-            <ul class="comment-list"></ul>
-            <form class="comment-form">
-              <input name="comment" type="text" placeholder="写下鉴赏、修订或展陈备注" required />
-              <button type="submit">添评</button>
-            </form>
-          </div>
         </div>
       </article>
     </template>
@@ -420,10 +518,12 @@
         </div>
         <div class="attachment-strip material-attachments"></div>
         <div class="card-content">
-          <h3 class="material-title"></h3>
+          <div class="card-heading">
+            <h3 class="material-title"></h3>
+            <div class="tag-list card-meta-tags material-tags material-meta-tags"></div>
+          </div>
           <p class="meta material-meta"></p>
           <p class="description material-description"></p>
-          <div class="tag-list material-tags"></div>
 
           <div class="card-actions">
             <button type="button" class="material-edit-btn">修改</button>
@@ -450,11 +550,12 @@
               <input name="tags" type="text" placeholder="如：皴法 纹理 课程" />
             </label>
             <label>
-              替换文件（可选，图片或视频，素材最大 100MB）
+              追加文件（可选，图片或视频，素材最大 100MB）
               <input
                 name="asset"
                 type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
+                multiple
               />
             </label>
             <div class="edit-actions">
@@ -463,21 +564,6 @@
             </div>
           </form>
 
-          <form class="material-append-attachment-form">
-            <label>
-              追加文件（图片或视频，素材最大 100MB）
-              <input
-                name="asset"
-                type="file"
-                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/x-matroska"
-                multiple
-                required
-              />
-            </label>
-            <div class="edit-actions">
-              <button type="submit">追加附件</button>
-            </div>
-          </form>
         </div>
       </article>
     </template>
@@ -576,6 +662,6 @@
     </div>
 
     <script src="/file-selection.js"></script>
-    <script src="/app.js?v=20260617-upload-message"></script>
+    <script src="/app.js?v=20260621-home-antique-seal"></script>
   </body>
 </html>

@@ -41,6 +41,7 @@ test("app shell exposes quota usage without exposing admin wording", async () =>
   assert.match(app, /const membershipSummary = document\.getElementById\("membership-summary"\)/);
   assert.match(app, /currentUsage = payload\.usage \|\| null/);
   assert.match(app, /function getVisibleUsage\(\)/);
+  assert.match(app, /async function showApp\(user\) \{[\s\S]*await loadAppData\(\);\s*await refreshMembershipSummary\(\);\s*\}/);
   assert.match(app, /Math\.max\(Number\(usage\.paintingCount \|\| 0\), Number\(paintingState\.total \|\| 0\)\)/);
   assert.match(app, /Math\.max\(Number\(usage\.materialCount \|\| 0\), Number\(materialState\.total \|\| 0\)\)/);
   assert.match(app, /空间 \$\{formatBytes\(usage\.storageBytes\)\} \/ \$\{formatBytes\(quota\.storageBytes\)\}/);

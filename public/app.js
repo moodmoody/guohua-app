@@ -415,6 +415,7 @@ async function showApp(user) {
   appShell.classList.remove("hidden");
   activateTab("paintings");
   await loadAppData();
+  await refreshMembershipSummary();
 }
 
 async function refreshMembershipSummary() {
@@ -433,7 +434,6 @@ async function initializeAuth() {
     const payload = await fetchJson("/api/auth/me");
     currentUsage = payload.usage || null;
     await showApp(payload.user);
-    await refreshMembershipSummary();
   } catch (_error) {
     showAuth();
   }
@@ -480,12 +480,39 @@ function bindFilePicker(input) {
 
   const listEl = document.createElement("div");
   listEl.className = "selected-file-list hidden";
-  input.insertAdjacentElement("afterend", listEl);
+  const triggerEl = input.closest(".upload-file-trigger");
+  const dropzoneEl = input.closest(".upload-dropzone");
+  if (triggerEl) {
+    triggerEl.insertAdjacentElement("afterend", listEl);
+  } else {
+    input.insertAdjacentElement("afterend", listEl);
+  }
   input.dataset.filePickerBound = "true";
 
   input.addEventListener("change", () => {
     renderSelectedFiles(input, listEl);
   });
+
+  if (dropzoneEl) {
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropzoneEl.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzoneEl.classList.add("dragging");
+      });
+    });
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropzoneEl.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzoneEl.classList.remove("dragging");
+      });
+    });
+    dropzoneEl.addEventListener("drop", (event) => {
+      const files = Array.from(event.dataTransfer?.files || []);
+      if (files.length) {
+        updateFileInputFiles(input, files);
+      }
+    });
+  }
 }
 
 function bindFilePickers(root = document) {
@@ -506,6 +533,14 @@ function activateTab(tabName) {
   tabPanes.forEach((pane) => {
     pane.classList.toggle("active", pane.dataset.tabPane === tabName);
   });
+}
+
+function scrollToAppTarget(targetId) {
+  const target = document.getElementById(targetId);
+  if (!target) {
+    return;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderLightboxMedia() {
@@ -812,13 +847,21 @@ function renderTagStrip({ container, tags, selectedTag, onSelect }) {
   });
 }
 
-function renderCardTags({ container, tags, keyword, onSelect }) {
+function renderCardTags({ container, category, tags, keyword, onSelect }) {
   if (!container) {
     return;
   }
   const normalizedTags = Array.isArray(tags) ? tags : [];
+  const normalizedCategory = String(category || "").trim();
   container.innerHTML = "";
-  container.classList.toggle("hidden", normalizedTags.length === 0);
+  container.classList.toggle("hidden", !normalizedCategory && normalizedTags.length === 0);
+
+  if (normalizedCategory) {
+    const categoryEl = document.createElement("span");
+    categoryEl.className = "card-category-pill";
+    setHighlightedText(categoryEl, normalizedCategory, keyword);
+    container.appendChild(categoryEl);
+  }
 
   normalizedTags.forEach((tag) => {
     const button = document.createElement("button");
@@ -985,7 +1028,7 @@ function applyListPayload(state, payload) {
     : Math.max(1, Math.ceil(state.total / state.pageSize));
 }
 
-function renderAttachmentStrip({ container, attachments, selectedIndex, onSelect, onDelete }) {
+function renderAttachmentStrip({ container, attachments }) {
   container.innerHTML = "";
 
   if (!attachments.length) {
@@ -996,33 +1039,10 @@ function renderAttachmentStrip({ container, attachments, selectedIndex, onSelect
     return;
   }
 
-  attachments.forEach((attachment, index) => {
-    const item = document.createElement("div");
-    item.className = "attachment-item";
-
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = `attachment-chip ${attachment.type === "video" ? "attachment-video" : "attachment-image"}`;
-    if (index === selectedIndex) {
-      chip.classList.add("active");
-    }
-    chip.textContent = `${attachment.type === "video" ? "视频" : "图片"} ${index + 1}`;
-    chip.addEventListener("click", () => {
-      onSelect(index);
-    });
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "attachment-remove";
-    removeBtn.textContent = "删除";
-    removeBtn.addEventListener("click", () => {
-      onDelete(attachment);
-    });
-
-    item.appendChild(chip);
-    item.appendChild(removeBtn);
-    container.appendChild(item);
-  });
+  const summary = document.createElement("span");
+  summary.className = "attachment-count";
+  summary.textContent = `共 ${attachments.length} 个文件`;
+  container.appendChild(summary);
 }
 
 function moveAttachmentIndex(currentIndex, total, delta) {
@@ -1187,7 +1207,6 @@ function renderPaintings() {
     const deleteBtn = fragment.querySelector(".delete-btn");
     const editForm = fragment.querySelector(".edit-form");
     const cancelEditBtn = fragment.querySelector(".cancel-edit-btn");
-    const appendForm = fragment.querySelector(".append-attachment-form");
     const commentList = fragment.querySelector(".comment-list");
     const commentForm = fragment.querySelector(".comment-form");
 
@@ -1198,15 +1217,13 @@ function renderPaintings() {
     setHighlightedText(titleEl, item.title, keyword);
 
     const updateText = item.updatedAt ? `，更新于：${formatTime(item.updatedAt)}` : "";
-    const categoryEl = document.createElement("span");
-    setHighlightedText(categoryEl, item.category, keyword);
     metaEl.textContent = "";
-    metaEl.appendChild(categoryEl);
-    metaEl.appendChild(document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`));
+    metaEl.appendChild(document.createTextNode(`创建于：${formatTime(item.createdAt)}${updateText}`));
 
     setHighlightedText(descEl, item.description || "暂无题跋简介", keyword);
     renderCardTags({
       container: tagsEl,
+      category: item.category,
       tags: item.tags,
       keyword,
       onSelect: async (tag) => {
@@ -1238,28 +1255,6 @@ function renderPaintings() {
       renderAttachmentStrip({
         container: attachmentsEl,
         attachments,
-        selectedIndex,
-        onSelect: (nextIndex) => {
-          selectedIndex = nextIndex;
-          renderCurrentAttachment();
-        },
-        onDelete: async (attachment) => {
-          const ok = window.confirm("确定删除这条附件吗？");
-          if (!ok) {
-            return;
-          }
-
-          try {
-            await fetchJson(`/api/paintings/${item.id}/attachments/${encodeURIComponent(attachment.id)}`, {
-              method: "DELETE",
-            });
-            setMessage(messageEl, "作品附件已删除");
-            await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
-            await refreshMembershipSummary();
-          } catch (error) {
-            setMessage(messageEl, error.message, true);
-          }
-        },
       });
     };
 
@@ -1399,38 +1394,6 @@ function renderPaintings() {
         setMessage(messageEl, editFiles.length ? "作品已更新，附件已追加" : "作品已更新");
         editForm.classList.add("hidden");
         resetFilePickers(editForm);
-        await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
-        await refreshMembershipSummary();
-      } catch (error) {
-        setMessage(messageEl, friendlyErrorMessage(error.message), true);
-      }
-    });
-
-    appendForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const files = Array.from(appendForm.elements.image.files || []);
-      if (!files.length) {
-        return;
-      }
-      const appendLimitMessage = paintingImageLimitMessage(files);
-      if (appendLimitMessage) {
-        setMessage(messageEl, appendLimitMessage, true);
-        return;
-      }
-
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("image", file);
-      });
-
-      try {
-        await fetchJson(`/api/paintings/${item.id}/attachments`, {
-          method: "POST",
-          body: formData,
-        });
-        appendForm.reset();
-        resetFilePickers(appendForm);
-        setMessage(messageEl, "作品附件已追加");
         await Promise.all([loadPaintingCategories(), loadPaintingTags(), loadPaintings()]);
         await refreshMembershipSummary();
       } catch (error) {
@@ -1603,7 +1566,6 @@ function renderMaterials() {
     const deleteBtn = fragment.querySelector(".material-delete-btn");
     const editForm = fragment.querySelector(".material-edit-form");
     const cancelBtn = fragment.querySelector(".material-cancel-edit-btn");
-    const appendForm = fragment.querySelector(".material-append-attachment-form");
 
     const attachments = getAttachments(item, item.assetUrl, materialTypeOf(item));
     let selectedIndex = 0;
@@ -1613,6 +1575,7 @@ function renderMaterials() {
     setHighlightedText(descEl, item.description || "暂无素材说明", keyword);
     renderCardTags({
       container: tagsEl,
+      category: item.category,
       tags: item.tags,
       keyword,
       onSelect: async (tag) => {
@@ -1628,10 +1591,7 @@ function renderMaterials() {
 
     metaEl.textContent = "";
     metaEl.appendChild(document.createTextNode(`${currentType === "video" ? "视频" : "图片"} · `));
-    const categoryEl = document.createElement("span");
-    setHighlightedText(categoryEl, item.category, keyword);
-    metaEl.appendChild(categoryEl);
-    metaEl.appendChild(document.createTextNode(` · 创建于：${formatTime(item.createdAt)}${updateText}`));
+    metaEl.appendChild(document.createTextNode(`创建于：${formatTime(item.createdAt)}${updateText}`));
 
     const renderCurrentAttachment = () => {
       const current = attachments[selectedIndex] || null;
@@ -1654,28 +1614,6 @@ function renderMaterials() {
       renderAttachmentStrip({
         container: attachmentsEl,
         attachments,
-        selectedIndex,
-        onSelect: (nextIndex) => {
-          selectedIndex = nextIndex;
-          renderCurrentAttachment();
-        },
-        onDelete: async (attachment) => {
-          const ok = window.confirm("确定删除这条附件吗？");
-          if (!ok) {
-            return;
-          }
-
-          try {
-            await fetchJson(`/api/materials/${item.id}/attachments/${encodeURIComponent(attachment.id)}`, {
-              method: "DELETE",
-            });
-            setMessage(materialMessageEl, "素材附件已删除");
-            await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
-            await refreshMembershipSummary();
-          } catch (error) {
-            setMessage(materialMessageEl, error.message, true);
-          }
-        },
       });
     };
 
@@ -1762,6 +1700,7 @@ function renderMaterials() {
         description: editForm.elements.description.value.trim(),
         tags: editForm.elements.tags.value,
       };
+      const editFiles = Array.from(editForm.elements.asset.files || []);
 
       try {
         await fetchJson(`/api/materials/${item.id}`, {
@@ -1769,36 +1708,19 @@ function renderMaterials() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        setMessage(materialMessageEl, "素材已更新");
+        if (editFiles.length) {
+          const editFormData = new FormData();
+          editFiles.forEach((file) => {
+            editFormData.append("asset", file);
+          });
+          await fetchJson(`/api/materials/${item.id}/attachments`, {
+            method: "POST",
+            body: editFormData,
+          });
+        }
+        setMessage(materialMessageEl, editFiles.length ? "素材已更新，附件已追加" : "素材已更新");
         editForm.classList.add("hidden");
         resetFilePickers(editForm);
-        await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
-        await refreshMembershipSummary();
-      } catch (error) {
-        setMessage(materialMessageEl, error.message, true);
-      }
-    });
-
-    appendForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const files = Array.from(appendForm.elements.asset.files || []);
-      if (!files.length) {
-        return;
-      }
-
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("asset", file);
-      });
-
-      try {
-        await fetchJson(`/api/materials/${item.id}/attachments`, {
-          method: "POST",
-          body: formData,
-        });
-        appendForm.reset();
-        resetFilePickers(appendForm);
-        setMessage(materialMessageEl, "素材附件已追加");
         await Promise.all([loadMaterialCategories(), loadMaterialTags(), loadMaterials()]);
         await refreshMembershipSummary();
       } catch (error) {
@@ -1981,6 +1903,15 @@ if (adminUsersRefresh) {
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
     activateTab(button.dataset.tabTarget);
+  });
+});
+
+document.querySelectorAll("[data-scroll-target]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const targetId = button.dataset.scrollTarget || "";
+    const tabName = button.dataset.tabTarget || (targetId.startsWith("material") ? "materials" : "paintings");
+    activateTab(tabName);
+    window.setTimeout(() => scrollToAppTarget(targetId), 80);
   });
 });
 
