@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/assets/app-icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/assets/app-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=20260621-home-antique-seal" />
+    <link rel="stylesheet" href="/style.css?v=20260629-ai-modal" />
   </head>
   <body>
     <section id="auth-screen" class="auth-screen">
@@ -461,6 +461,7 @@
 
               <div class="card-actions">
                 <button type="button" class="share-btn">分享</button>
+                <button type="button" class="ai-appreciation-btn">AI 赏析</button>
                 <button type="button" class="edit-btn">修改</button>
                 <button type="button" class="delete-btn danger">删除</button>
               </div>
@@ -661,7 +662,20 @@
       </div>
     </div>
 
+    <div id="ai-appreciation-modal" class="ai-appreciation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ai-appreciation-title">
+      <div class="ai-appreciation-dialog">
+        <button id="ai-appreciation-close" class="ai-appreciation-close" type="button" aria-label="关闭 AI 赏析">关闭</button>
+        <span class="ai-appreciation-kicker">丹青助读</span>
+        <div class="ai-appreciation-head">
+          <h2 id="ai-appreciation-title">AI 赏析</h2>
+          <span id="ai-appreciation-meta" class="ai-appreciation-meta"></span>
+        </div>
+        <p id="ai-appreciation-work" class="ai-appreciation-work"></p>
+        <div id="ai-appreciation-content" class="ai-appreciation-content"></div>
+      </div>
+    </div>
+
     <script src="/file-selection.js"></script>
-    <script src="/app.js?v=20260621-home-antique-seal"></script>
+    <script src="/app.js?v=20260629-ai-modal"></script>
   </body>
 </html>

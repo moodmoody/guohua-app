@@ -1740,6 +1740,125 @@ mark.hl {
   background: var(--pine-deep);
 }
 
+.ai-appreciation-btn {
+  border-color: rgba(170, 61, 45, 0.46);
+  background: rgba(170, 61, 45, 0.08);
+  color: var(--cinnabar-deep);
+}
+
+.ai-appreciation-btn:hover {
+  background: rgba(170, 61, 45, 0.14);
+  box-shadow: none;
+}
+
+.ai-appreciation-modal.hidden {
+  display: none;
+}
+
+.ai-appreciation-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(24, 20, 16, 0.54);
+  backdrop-filter: blur(5px);
+}
+
+.ai-appreciation-dialog {
+  width: min(760px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  position: relative;
+  padding: 28px 28px 24px;
+  border: 1px solid rgba(116, 92, 61, 0.26);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(132, 39, 28, 0.08), transparent 18%, transparent 82%, rgba(49, 95, 69, 0.08)),
+    linear-gradient(180deg, rgba(255, 252, 244, 0.96), rgba(247, 239, 224, 0.94)),
+    var(--paper-soft);
+  box-shadow: 0 28px 80px rgba(20, 16, 12, 0.36);
+}
+
+.ai-appreciation-dialog::before,
+.ai-appreciation-dialog::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(116, 92, 61, 0.26), transparent);
+}
+
+.ai-appreciation-dialog::before {
+  top: 13px;
+}
+
+.ai-appreciation-dialog::after {
+  bottom: 13px;
+}
+
+.ai-appreciation-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: auto;
+  margin: 0;
+  padding: 7px 12px;
+  border-color: rgba(116, 92, 61, 0.26);
+  background: rgba(255, 250, 240, 0.68);
+  color: var(--ink-soft);
+}
+
+.ai-appreciation-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--cinnabar-deep);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.ai-appreciation-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--cinnabar-deep);
+}
+
+.ai-appreciation-head h2 {
+  margin: 0;
+  padding-right: 68px;
+  font-size: 30px;
+  line-height: 1.18;
+}
+
+.ai-appreciation-meta {
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+
+.ai-appreciation-work {
+  margin: 0 0 16px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.ai-appreciation-content {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-appreciation-content p {
+  margin: 0;
+  color: #4f4438;
+  font-size: 15px;
+  line-height: 1.86;
+}
+
 .edit-form,
 .material-edit-form {
   border: 1px dashed var(--line-strong);
@@ -2315,6 +2434,42 @@ mark.hl {
     transform: none;
     box-shadow: none;
     filter: none;
+  }
+
+  .ai-appreciation-modal {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .ai-appreciation-dialog {
+    max-height: calc(100vh - 24px);
+    padding: 22px 16px 18px;
+  }
+
+  .ai-appreciation-close {
+    top: 14px;
+    right: 14px;
+    min-height: 38px;
+    padding-inline: 10px;
+  }
+
+  .ai-appreciation-head {
+    display: block;
+  }
+
+  .ai-appreciation-head h2 {
+    padding-right: 72px;
+    font-size: 24px;
+  }
+
+  .ai-appreciation-meta {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .ai-appreciation-content p {
+    font-size: 14px;
+    line-height: 1.78;
   }
 
   .auth-screen {

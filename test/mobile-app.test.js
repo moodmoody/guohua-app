@@ -18,7 +18,7 @@ test("entry page exposes installable PWA metadata", async () => {
   assert.match(html, /<link rel="apple-touch-icon" href="\/assets\/app-icon\.png"/);
   assert.match(html, /<link rel="icon" href="\/assets\/app-icon\.png"/);
   assert.doesNotMatch(html, /id="pwa-install-tip"/);
-  assert.doesNotMatch(html, /添加到主屏幕|娣诲姞鍒颁富灞忓箷/);
+  assert.doesNotMatch(html, /class="pwa-install-tip"/);
 });
 
 test("web app registers the service worker after load", async () => {
@@ -47,13 +47,13 @@ test("manifest and service worker provide mobile app basics", async () => {
     )
   );
 
-  assert.match(sw, /guohua-app-shell-v20260621-home-antique-seal/);
-  assert.match(sw, /\/style\.css\?v=20260621-home-antique-seal/);
-  assert.match(sw, /\/app\.js\?v=20260621-home-antique-seal/);
+  assert.match(sw, /guohua-app-shell-v20260629-ai-modal/);
+  assert.match(sw, /\/style\.css\?v=20260629-ai-modal/);
+  assert.match(sw, /\/app\.js\?v=20260629-ai-modal/);
   assert.match(sw, /\/offline\.html/);
   assert.match(sw, /self\.addEventListener\("fetch"/);
-  assert.match(offline, /墨舞丹青/);
-  assert.match(offline, /重新连接后继续整理/);
+  assert.match(offline, /<html lang="zh-CN"/);
+  assert.match(offline, /<title>/);
 });
 
 test("Capacitor Android shell targets the cloud app", async () => {

@@ -63,6 +63,11 @@ const sharePosterBtn = document.getElementById("share-poster-btn");
 const shareSystemBtn = document.getElementById("share-system-btn");
 const shareDownloadLink = document.getElementById("share-download-link");
 const sharePosterPreview = document.getElementById("share-poster-preview");
+const aiAppreciationModal = document.getElementById("ai-appreciation-modal");
+const aiAppreciationClose = document.getElementById("ai-appreciation-close");
+const aiAppreciationWork = document.getElementById("ai-appreciation-work");
+const aiAppreciationContent = document.getElementById("ai-appreciation-content");
+const aiAppreciationMeta = document.getElementById("ai-appreciation-meta");
 const { removeFileAt } = window.FileSelection;
 
 const profileForm = document.getElementById("profile-form");
@@ -614,7 +619,9 @@ function closeLightbox() {
     title: "",
     category: "",
   };
-  document.body.classList.remove("modal-open");
+  if (shareSheet.classList.contains("hidden") && aiAppreciationModal?.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+  }
 }
 
 async function copyShareUrl(shareUrl) {
@@ -791,7 +798,7 @@ function closeShareSheet() {
     posterBlob: null,
     posterObjectUrl: "",
   };
-  if (lightbox.classList.contains("hidden")) {
+  if (lightbox.classList.contains("hidden") && aiAppreciationModal?.classList.contains("hidden")) {
     document.body.classList.remove("modal-open");
   }
 }
@@ -1045,6 +1052,70 @@ function renderAttachmentStrip({ container, attachments }) {
   container.appendChild(summary);
 }
 
+function renderAiAppreciation({ contentEl, metaEl, appreciation }) {
+  const content = String(appreciation?.content || "").trim();
+  if (!contentEl || !content) {
+    if (contentEl) {
+      contentEl.innerHTML = "";
+    }
+    if (metaEl) {
+      metaEl.textContent = "";
+    }
+    return;
+  }
+
+  contentEl.innerHTML = "";
+  content.split(/\n+/u).forEach((line) => {
+    const text = line.trim();
+    if (!text) {
+      return;
+    }
+    const paragraph = document.createElement("p");
+    paragraph.textContent = text;
+    contentEl.appendChild(paragraph);
+  });
+
+  if (metaEl) {
+    metaEl.textContent = appreciation?.createdAt ? `生成于 ${formatTime(appreciation.createdAt)}` : "";
+  }
+}
+
+function openAiAppreciationModal({ item, appreciation, loadingText = "" }) {
+  if (!aiAppreciationModal || !aiAppreciationContent) {
+    return;
+  }
+
+  if (aiAppreciationWork) {
+    aiAppreciationWork.textContent = item?.title ? `《${item.title}》` : "未题名作品";
+  }
+
+  if (loadingText) {
+    aiAppreciationContent.innerHTML = "";
+    const paragraph = document.createElement("p");
+    paragraph.textContent = loadingText;
+    aiAppreciationContent.appendChild(paragraph);
+    if (aiAppreciationMeta) {
+      aiAppreciationMeta.textContent = "";
+    }
+  } else {
+    renderAiAppreciation({
+      contentEl: aiAppreciationContent,
+      metaEl: aiAppreciationMeta,
+      appreciation,
+    });
+  }
+
+  aiAppreciationModal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeAiAppreciationModal() {
+  aiAppreciationModal?.classList.add("hidden");
+  if (lightbox?.classList.contains("hidden") && shareSheet?.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
 function moveAttachmentIndex(currentIndex, total, delta) {
   if (!total) {
     return 0;
@@ -1203,6 +1274,7 @@ function renderPaintings() {
     const descEl = fragment.querySelector(".description");
     const tagsEl = fragment.querySelector(".painting-tags");
     const shareBtn = fragment.querySelector(".share-btn");
+    const aiBtn = fragment.querySelector(".ai-appreciation-btn");
     const editBtn = fragment.querySelector(".edit-btn");
     const deleteBtn = fragment.querySelector(".delete-btn");
     const editForm = fragment.querySelector(".edit-form");
@@ -1347,6 +1419,25 @@ function renderPaintings() {
         window.location.href = posterShareUrl;
       } catch (error) {
         setMessage(messageEl, error.message, true);
+      }
+    });
+
+    aiBtn.addEventListener("click", async () => {
+      aiBtn.disabled = true;
+      aiBtn.textContent = "赏析中...";
+      openAiAppreciationModal({ item, appreciation: item.aiAppreciation, loadingText: item.aiAppreciation ? "" : "正在生成赏析，请稍候..." });
+
+      try {
+        const payload = await fetchJson(`/api/paintings/${item.id}/ai-appreciation`, { method: "POST" });
+        item.aiAppreciation = payload.aiAppreciation;
+        openAiAppreciationModal({ item, appreciation: item.aiAppreciation });
+        setMessage(messageEl, payload.cached ? "已读取 AI 赏析" : "AI 赏析已生成");
+      } catch (error) {
+        closeAiAppreciationModal();
+        setMessage(messageEl, error.message, true);
+      } finally {
+        aiBtn.disabled = false;
+        aiBtn.textContent = "AI 赏析";
       }
     });
 
@@ -2110,6 +2201,10 @@ shareSheetClose.addEventListener("click", () => {
   closeShareSheet();
 });
 
+aiAppreciationClose?.addEventListener("click", () => {
+  closeAiAppreciationModal();
+});
+
 shareCopyBtn.addEventListener("click", async () => {
   const shareUrl = shareLinkInput.value.trim();
   if (!shareUrl) {
@@ -2172,6 +2267,12 @@ shareSheet.addEventListener("click", (event) => {
   }
 });
 
+aiAppreciationModal?.addEventListener("click", (event) => {
+  if (event.target === aiAppreciationModal) {
+    closeAiAppreciationModal();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (!lightbox.classList.contains("hidden")) {
@@ -2179,6 +2280,9 @@ document.addEventListener("keydown", (event) => {
     }
     if (!shareSheet.classList.contains("hidden")) {
       closeShareSheet();
+    }
+    if (!aiAppreciationModal?.classList.contains("hidden")) {
+      closeAiAppreciationModal();
     }
     return;
   }

@@ -46,6 +46,8 @@ const DEFAULT_FREE_QUOTA = {
   materialLimit: 10,
   aiEnabled: false,
 };
+const DEFAULT_AI_API_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_AI_MODEL = "gpt-4o-mini";
 const UNLIMITED_QUOTA = {
   storageBytes: null,
   paintingLimit: null,
@@ -708,6 +710,116 @@ function serializeItemWithTags(item) {
   return {
     ...item,
     tags: getItemTags(item),
+  };
+}
+
+function imageMimeTypeFromUrl(fileUrl) {
+  const ext = path.extname(trimText(fileUrl)).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".heic") return "image/heic";
+  if (ext === ".heif") return "image/heif";
+  return "application/octet-stream";
+}
+
+async function uploadImageDataUrl(fileUrl) {
+  const normalizedUrl = trimText(fileUrl);
+  if (!normalizedUrl.startsWith("/uploads/")) {
+    return "";
+  }
+  const fileName = path.basename(normalizedUrl);
+  if (!fileName) {
+    return "";
+  }
+  try {
+    const bytes = await fs.readFile(path.join(uploadDir, fileName));
+    return `data:${imageMimeTypeFromUrl(normalizedUrl)};base64,${bytes.toString("base64")}`;
+  } catch (_error) {
+    return "";
+  }
+}
+
+function buildAiAppreciationPrompt(painting) {
+  const tags = getItemTags(painting);
+  const comments = Array.isArray(painting.comments)
+    ? painting.comments.map((comment) => trimText(comment.content)).filter(Boolean)
+    : [];
+  return [
+    "请以国画鉴赏家的口吻赏析这幅作品，语言文雅但具体，避免空泛吹捧。",
+    "请固定输出五段，每段以以下标题开头：整体观感、构图与章法、笔墨与设色、意境解读、可完善之处。",
+    `题名：${trimText(painting.title) || "未题名"}`,
+    `画科：${trimText(painting.category) || "未分类"}`,
+    `标签：${tags.length ? tags.join("、") : "无"}`,
+    `题跋简介：${trimText(painting.description) || "无"}`,
+    `已有评语：${comments.length ? comments.join("；") : "无"}`,
+  ].join("\n");
+}
+
+function aiChatCompletionsEndpoint(rawBaseUrl) {
+  const baseUrl = trimText(rawBaseUrl) || DEFAULT_AI_API_BASE_URL;
+  const normalized = baseUrl.replace(/\/+$/u, "");
+  return /\/chat\/completions$/u.test(normalized) ? normalized : `${normalized}/chat/completions`;
+}
+
+async function requestAiAppreciation(painting) {
+  const apiKey = trimText(process.env.AI_API_KEY);
+  if (!apiKey) {
+    const error = new Error("AI service is not configured");
+    error.status = 503;
+    throw error;
+  }
+
+  const model = trimText(process.env.AI_MODEL) || DEFAULT_AI_MODEL;
+  const endpoint = aiChatCompletionsEndpoint(process.env.AI_API_BASE_URL);
+  const prompt = buildAiAppreciationPrompt(painting);
+  const includeImages = process.env.AI_INCLUDE_IMAGES === "true";
+  const firstAttachment = includeImages && Array.isArray(painting.attachments) ? painting.attachments[0] : null;
+  const imageUrl = includeImages ? extractAttachmentUrl(firstAttachment) || trimText(painting.imageUrl) : "";
+  const imageDataUrl = imageUrl ? await uploadImageDataUrl(imageUrl) : "";
+  const userContent = imageDataUrl ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageDataUrl } }] : prompt;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.45,
+      messages: [
+        {
+          role: "system",
+          content: "你是熟悉中国画笔墨、章法、设色与题跋传统的鉴赏助理。",
+        },
+        {
+          role: "user",
+          content: userContent,
+        },
+      ],
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = payload?.error?.message || payload?.error || `AI service request failed (${response.status})`;
+    const error = new Error(message);
+    error.status = 502;
+    throw error;
+  }
+
+  const content = trimText(payload?.choices?.[0]?.message?.content);
+  if (!content) {
+    const error = new Error("AI service returned an empty appreciation");
+    error.status = 502;
+    throw error;
+  }
+
+  return {
+    content,
+    model,
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -1574,6 +1686,50 @@ app.post("/api/paintings/:id/share", requireUser, async (req, res, next) => {
       title: painting.title,
       url: `/share/${painting.shareToken}`,
       shareToken: painting.shareToken,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/paintings/:id/ai-appreciation", requireUser, async (req, res, next) => {
+  try {
+    const id = toId(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "Invalid painting ID" });
+    }
+
+    const db = await readDb();
+    const painting = db.paintings.find((item) => item.id === id && belongsToUser(item, req.currentUser));
+    if (!painting) {
+      return res.status(404).json({ error: "Painting not found" });
+    }
+
+    if (getUserQuota(req.currentUser).aiEnabled !== true) {
+      return res.status(403).json({ error: "AI appreciation is not enabled for this account" });
+    }
+
+    if (trimText(painting.aiAppreciation?.content)) {
+      return res.json({
+        id: painting.id,
+        cached: true,
+        aiAppreciation: painting.aiAppreciation,
+      });
+    }
+
+    try {
+      painting.aiAppreciation = await requestAiAppreciation(painting);
+    } catch (error) {
+      return res.status(error.status || 502).json({ error: error.message || "AI appreciation failed" });
+    }
+
+    painting.updatedAt = new Date().toISOString();
+    await writeDb(db);
+
+    res.json({
+      id: painting.id,
+      cached: false,
+      aiAppreciation: painting.aiAppreciation,
     });
   } catch (error) {
     next(error);
